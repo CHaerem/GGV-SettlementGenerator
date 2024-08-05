@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+  </head>
+  <body>
+    <form>
+      <input type="file" value="Velg Fil" name="file">
+      <br><br>
+      <input type="button" value="Last Opp" onclick="uploadFile()">
+    </form>
+    <script>
+      function uploadFile() {
+        var form = document.forms[0];
+        google.script.run.withSuccessHandler(function(response) {
+          alert(response);
+        }).uploadFile(form);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <style>
+      #drop_zone {
+        border: 2px dashed #ccc;
+        height: 200px;
+        width: 400px;
+        margin: 20px auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.2rem;
+      }
+
+      #drop_zone.highlight {
+        border-color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="drop_zone">Drag and drop your PDF file here or click to upload</div>
+    </div>
+
+    <script>
+      var dropZone = document.getElementById('drop_zone');
+
+      dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('highlight');
+      });
+
+      dropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('highlight');
+      });
+
+      dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('highlight');
+
+        var file = e.dataTransfer.files[0];
+        if (file) {
+          // TODO: add call to uploadFile method
+        } else {
+          alert("No file selected.");
+        }
+      });
+
+      dropZone.addEventListener('click', function(e) {
+        var fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.pdf';
+        fileInput.addEventListener('change', function(e) {
+          var file = e.target.files[0];
+          if (file) {
+            // TODO: add call to uploadFile method
+          } else {
+            alert("No file selected.");
+          }
+        });
+        fileInput.click();
+      });
+
+      function showResult(result) {
+        var message = result ? "File uploaded successfully." : "Error uploading file.";
+        M.toast({html: message, classes: 'rounded'});
+      }
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  </body>
+</html>
