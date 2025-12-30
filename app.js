@@ -216,6 +216,11 @@ function extractInformationFromPDFText(textContent) {
 
     const companies = [];
 
+    if (!textContent) {
+        console.warn('No text content to extract from');
+        return companies;
+    }
+
     // Main extraction pattern - flexible with whitespace around "kr" and ",-"
     // Matches: "1   Uinnløste til   Ung Kreft   500   kr ,-   100 %"
     const pattern = /(\d+)\s+(.+?)\s+([\d\s,.]+)\s*kr\s*[,\-]+\s*(\d+)\s*%/gm;
@@ -279,6 +284,11 @@ function extractInformationFromPDFText(textContent) {
 function extractSumFromPDFText(textContent) {
     console.log('Extracting sum from text...');
 
+    if (!textContent) {
+        console.warn('No text content to extract sum from');
+        return null;
+    }
+
     // Look for "Totalsum" or "Total" followed by a number and "kr"
     const sumPattern = /(Totalsum|Total)\s*(kr\s*)?(\d[\d\s,.]+)(\s*kr)?/i;
     const match = textContent.match(sumPattern);
@@ -321,6 +331,10 @@ function calculateTotal(companies) {
  * Ported from Code.js
  */
 function extractRecipientCompanyFromPDFText(textContent) {
+    if (!textContent) {
+        return null;
+    }
+
     // Try multiple patterns for recipient extraction
     const patterns = [
         /til:\s+(.+?)\s*\n/s,                                    // Original pattern with newline
