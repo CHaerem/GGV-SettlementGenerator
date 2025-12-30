@@ -1,2 +1,21 @@
-.clasp.json
-creds.json
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Node modules (if using npm for development)
+node_modules/
+
+# Local development
+.env
+.env.local

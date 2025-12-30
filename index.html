@@ -1,80 +1,124 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <base target="_top">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <style>
-      #drop_zone {
-        border: 2px dashed #ccc;
-        height: 200px;
-        width: 400px;
-        margin: 20px auto;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 1.2rem;
-      }
-
-      #drop_zone.highlight {
-        border-color: #333;
-      }
-    </style>
-  </head>
-  <body>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GGV Oppgjørsgenerator</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- PDF.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- Tesseract.js for OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
     <div class="container">
-      <div id="drop_zone">Drag and drop your PDF file here or click to upload</div>
+        <header>
+            <h1>GGV Oppgjørsgenerator</h1>
+            <p class="subtitle">Last opp PDF-oppgjør fra Gi Gaven Videre for å trekke ut donasjonsdata</p>
+        </header>
+
+        <main>
+            <!-- Upload Section -->
+            <section class="upload-section">
+                <div class="upload-area" id="dropZone">
+                    <div class="upload-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
+                    <p class="upload-text">Dra og slipp PDF-fil her</p>
+                    <p class="upload-subtext">eller</p>
+                    <label class="upload-button">
+                        <input type="file" id="fileInput" accept=".pdf" hidden>
+                        Velg fil
+                    </label>
+                </div>
+                <p class="file-name" id="fileName"></p>
+            </section>
+
+            <!-- Processing Status -->
+            <section class="status-section hidden" id="statusSection">
+                <div class="status-content">
+                    <div class="spinner" id="spinner"></div>
+                    <p class="status-text" id="statusText">Behandler PDF...</p>
+                    <div class="progress-bar" id="progressBar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Error Display -->
+            <section class="error-section hidden" id="errorSection">
+                <div class="error-content">
+                    <span class="error-icon">!</span>
+                    <p class="error-text" id="errorText"></p>
+                    <button class="retry-button" onclick="resetApp()">Prøv igjen</button>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section hidden" id="resultsSection">
+                <div class="results-header">
+                    <h2>Resultater</h2>
+                    <div class="results-actions">
+                        <button class="action-button" onclick="exportToCSV()">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Last ned CSV
+                        </button>
+                        <button class="action-button secondary" onclick="resetApp()">
+                            Ny fil
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <span class="summary-label">Mottaker</span>
+                        <span class="summary-value" id="recipientValue">-</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Totalsum</span>
+                        <span class="summary-value" id="totalValue">-</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Antall organisasjoner</span>
+                        <span class="summary-value" id="orgCountValue">-</span>
+                    </div>
+                </div>
+
+                <!-- Validation Message -->
+                <div class="validation-message" id="validationMessage"></div>
+
+                <!-- Results Table -->
+                <div class="table-container">
+                    <table class="results-table" id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th>Organisasjon</th>
+                                <th>Beløp (kr)</th>
+                                <th>Antall gaver</th>
+                                <th>Prosent</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>GGV Oppgjørsgenerator - Et verktøy for Gi Gaven Videre</p>
+        </footer>
     </div>
 
-    <script>
-      var dropZone = document.getElementById('drop_zone');
-
-      dropZone.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.add('highlight');
-      });
-
-      dropZone.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.remove('highlight');
-      });
-
-      dropZone.addEventListener('drop', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.remove('highlight');
-
-        var file = e.dataTransfer.files[0];
-        if (file) {
-          // TODO: add call to uploadFile method
-        } else {
-          alert("No file selected.");
-        }
-      });
-
-      dropZone.addEventListener('click', function(e) {
-        var fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.pdf';
-        fileInput.addEventListener('change', function(e) {
-          var file = e.target.files[0];
-          if (file) {
-            // TODO: add call to uploadFile method
-          } else {
-            alert("No file selected.");
-          }
-        });
-        fileInput.click();
-      });
-
-      function showResult(result) {
-        var message = result ? "File uploaded successfully." : "Error uploading file.";
-        M.toast({html: message, classes: 'rounded'});
-      }
-    </script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
-  </body>
+    <script src="app.js"></script>
+</body>
 </html>
