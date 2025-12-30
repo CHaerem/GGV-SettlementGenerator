@@ -309,6 +309,14 @@ header h1 {
     background: #f0fdf4;
     color: var(--success-color);
     border: 1px solid #bbf7d0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.validation-message.success::before {
+    content: "✓";
+    font-weight: bold;
 }
 
 .validation-message.warning {
@@ -354,8 +362,17 @@ header h1 {
     letter-spacing: 0.05em;
 }
 
-.results-table tbody tr:hover {
+.results-table tbody tr:nth-child(odd) {
     background: var(--background-color);
+}
+
+.results-table tbody tr:hover {
+    background: #e2e8f0;
+}
+
+.results-table thead {
+    position: sticky;
+    top: 0;
 }
 
 .results-table td:nth-child(2),
