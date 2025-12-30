@@ -216,12 +216,13 @@ function extractInformationFromPDFText(textContent) {
 
     const companies = [];
 
-    // Main extraction pattern
-    const pattern = /(\d+)\s+(.+?)\s+([\d\s,.]+)\s+kr,-\s+(\d+)\s*%/gm;
+    // Main extraction pattern - flexible with whitespace around "kr" and ",-"
+    // Matches: "1   Uinnløste til   Ung Kreft   500   kr ,-   100 %"
+    const pattern = /(\d+)\s+(.+?)\s+([\d\s,.]+)\s*kr\s*[,\-]+\s*(\d+)\s*%/gm;
     let match;
     while ((match = pattern.exec(textContent)) !== null) {
         companies.push({
-            name: match[2].trim(),
+            name: match[2].trim().replace(/\s+/g, ' '),  // Collapse multiple spaces
             number: match[3].replace(/[\s,.]/g, '').replace(',', '.'),
             numberOfGifts: parseInt(match[1]),
             percentage: parseInt(match[4])
@@ -320,13 +321,29 @@ function calculateTotal(companies) {
  * Ported from Code.js
  */
 function extractRecipientCompanyFromPDFText(textContent) {
-    const pattern = /til:\s+(.+?)\s\n/s;
-    const match = textContent.match(pattern);
-    if (match && match[1]) {
-        return match[1].trim();
-    } else {
-        return null;
+    // Try multiple patterns for recipient extraction
+    const patterns = [
+        /til:\s+(.+?)\s*\n/s,                                    // Original pattern with newline
+        /til:\s+([A-ZÆØÅa-zæøå][a-zæøå]+(?:\s+[A-ZÆØÅa-zæøå][a-zæøå]+)*)/,  // Name (First Last format)
+        /til:\s+([A-ZÆØÅa-zæøå\s]+?)(?:\s{2,}[A-Z]|\s+\d)/i,    // Name followed by double space+capital or digit (address)
+    ];
+
+    for (const pattern of patterns) {
+        const match = textContent.match(pattern);
+        if (match && match[1]) {
+            // Clean up multiple spaces and limit to reasonable length
+            let result = match[1].trim().replace(/\s+/g, ' ');
+            // If result seems too long, try to extract just the name portion
+            if (result.length > 50) {
+                const words = result.split(' ');
+                // Take first 2-4 words that look like a name
+                result = words.slice(0, 4).join(' ');
+            }
+            return result;
+        }
     }
+
+    return null;
 }
 
 function displayResults() {
@@ -451,4 +468,26 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Expose functions for testing
+if (typeof window !== 'undefined') {
+    window.extractInformationFromPDFText = extractInformationFromPDFText;
+    window.extractSumFromPDFText = extractSumFromPDFText;
+    window.extractRecipientCompanyFromPDFText = extractRecipientCompanyFromPDFText;
+    window.calculateTotal = calculateTotal;
+    window.displayResults = displayResults;
+    window.showStatus = showStatus;
+    window.updateProgress = updateProgress;
+    window.resetApp = resetApp;
+    window.formatNumber = formatNumber;
+    window.escapeHtml = escapeHtml;
+
+    // Allow tests to set extractedData
+    window.setExtractedData = function(data) {
+        extractedData = data;
+    };
+    window.getExtractedData = function() {
+        return extractedData;
+    };
 }

@@ -70,30 +70,36 @@ test.describe('GGV Oppgjørsgenerator - Drag and Drop', () => {
   test('should add dragover class when dragging over drop zone', async ({ page }) => {
     await page.goto('/');
 
-    const dropZone = page.locator('#dropZone');
-
-    // Simulate dragover event
-    await dropZone.dispatchEvent('dragover', {
-      dataTransfer: { files: [] }
+    // Simulate dragover event using page.evaluate
+    await page.evaluate(() => {
+      const dropZone = document.getElementById('dropZone');
+      const event = new Event('dragover', { bubbles: true, cancelable: true });
+      event.preventDefault = () => {};
+      dropZone.dispatchEvent(event);
     });
 
-    await expect(dropZone).toHaveClass(/dragover/);
+    await expect(page.locator('#dropZone')).toHaveClass(/dragover/);
   });
 
   test('should remove dragover class when leaving drop zone', async ({ page }) => {
     await page.goto('/');
 
-    const dropZone = page.locator('#dropZone');
-
     // Simulate dragover then dragleave
-    await dropZone.dispatchEvent('dragover', {
-      dataTransfer: { files: [] }
-    });
-    await dropZone.dispatchEvent('dragleave', {
-      dataTransfer: { files: [] }
+    await page.evaluate(() => {
+      const dropZone = document.getElementById('dropZone');
+      const dragoverEvent = new Event('dragover', { bubbles: true, cancelable: true });
+      dragoverEvent.preventDefault = () => {};
+      dropZone.dispatchEvent(dragoverEvent);
     });
 
-    await expect(dropZone).not.toHaveClass(/dragover/);
+    await page.evaluate(() => {
+      const dropZone = document.getElementById('dropZone');
+      const dragleaveEvent = new Event('dragleave', { bubbles: true, cancelable: true });
+      dragleaveEvent.preventDefault = () => {};
+      dropZone.dispatchEvent(dragleaveEvent);
+    });
+
+    await expect(page.locator('#dropZone')).not.toHaveClass(/dragover/);
   });
 });
 
@@ -187,9 +193,9 @@ test.describe('GGV Oppgjørsgenerator - Results Display', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
 
-    // Mock the PDF processing by injecting test data
+    // Mock the PDF processing by injecting test data using the exposed API
     await page.evaluate(() => {
-      window.extractedData = {
+      window.setExtractedData({
         companies: [
           { name: 'Røde Kors', number: '5000', numberOfGifts: 10, percentage: 25 },
           { name: 'Kirkens Bymisjon', number: '3000', numberOfGifts: 6, percentage: 15 },
@@ -198,12 +204,10 @@ test.describe('GGV Oppgjørsgenerator - Results Display', () => {
         sum: 10000,
         recipientCompany: 'Test Company AS',
         calculatedTotal: 10000
-      };
+      });
 
       // Call displayResults directly
-      if (typeof displayResults === 'function') {
-        displayResults();
-      }
+      window.displayResults();
     });
   });
 
@@ -250,13 +254,13 @@ test.describe('GGV Oppgjørsgenerator - Validation Messages', () => {
     await page.goto('/');
 
     await page.evaluate(() => {
-      window.extractedData = {
+      window.setExtractedData({
         companies: [{ name: 'Test Org', number: '1000' }],
         sum: null,
         recipientCompany: 'Test',
         calculatedTotal: 1000
-      };
-      displayResults();
+      });
+      window.displayResults();
     });
 
     await expect(page.locator('#validationMessage')).toHaveClass(/warning/);
@@ -267,13 +271,13 @@ test.describe('GGV Oppgjørsgenerator - Validation Messages', () => {
     await page.goto('/');
 
     await page.evaluate(() => {
-      window.extractedData = {
+      window.setExtractedData({
         companies: [{ name: 'Test Org', number: '1000' }],
         sum: 5000,
         recipientCompany: 'Test',
         calculatedTotal: 1000
-      };
-      displayResults();
+      });
+      window.displayResults();
     });
 
     await expect(page.locator('#validationMessage')).toHaveClass(/warning/);
@@ -287,15 +291,15 @@ test.describe('GGV Oppgjørsgenerator - CSV Export', () => {
 
     // Set up test data
     await page.evaluate(() => {
-      window.extractedData = {
+      window.setExtractedData({
         companies: [
           { name: 'Test Org', number: '1000', numberOfGifts: 5, percentage: 50 },
         ],
         sum: 1000,
         recipientCompany: 'Test Company',
         calculatedTotal: 1000
-      };
-      displayResults();
+      });
+      window.displayResults();
     });
 
     // Listen for download
@@ -314,13 +318,13 @@ test.describe('GGV Oppgjørsgenerator - Reset Functionality', () => {
 
     // Show results first
     await page.evaluate(() => {
-      window.extractedData = {
+      window.setExtractedData({
         companies: [{ name: 'Test', number: '100' }],
         sum: 100,
         recipientCompany: 'Test',
         calculatedTotal: 100
-      };
-      displayResults();
+      });
+      window.displayResults();
     });
 
     await expect(page.locator('#resultsSection')).toBeVisible();
@@ -410,13 +414,13 @@ test.describe('GGV Oppgjørsgenerator - Responsive Design', () => {
 
     // Show results
     await page.evaluate(() => {
-      window.extractedData = {
+      window.setExtractedData({
         companies: [{ name: 'Test', number: '100' }],
         sum: 100,
         recipientCompany: 'Test',
         calculatedTotal: 100
-      };
-      displayResults();
+      });
+      window.displayResults();
     });
 
     // Action buttons should still be visible and functional
@@ -527,13 +531,13 @@ test.describe('GGV Oppgjørsgenerator - Edge Cases', () => {
     await page.goto('/');
 
     await page.evaluate(() => {
-      window.extractedData = {
+      window.setExtractedData({
         companies: [],
         sum: 0,
         recipientCompany: null,
         calculatedTotal: 0
-      };
-      displayResults();
+      });
+      window.displayResults();
     });
 
     await expect(page.locator('#resultsSection')).toBeVisible();
@@ -545,7 +549,7 @@ test.describe('GGV Oppgjørsgenerator - Edge Cases', () => {
     await page.goto('/');
 
     await page.evaluate(() => {
-      window.extractedData = {
+      window.setExtractedData({
         companies: [
           { name: 'Org with <script>alert("xss")</script>', number: '1000' },
           { name: 'Org with "quotes" & ampersands', number: '2000' },
@@ -553,8 +557,8 @@ test.describe('GGV Oppgjørsgenerator - Edge Cases', () => {
         sum: 3000,
         recipientCompany: 'Test',
         calculatedTotal: 3000
-      };
-      displayResults();
+      });
+      window.displayResults();
     });
 
     // Should not execute script, should escape HTML
@@ -567,15 +571,15 @@ test.describe('GGV Oppgjørsgenerator - Edge Cases', () => {
     await page.goto('/');
 
     await page.evaluate(() => {
-      window.extractedData = {
+      window.setExtractedData({
         companies: [
           { name: 'Big Org', number: '1000000000' },
         ],
         sum: 1000000000,
         recipientCompany: 'Test',
         calculatedTotal: 1000000000
-      };
-      displayResults();
+      });
+      window.displayResults();
     });
 
     await expect(page.locator('#resultsSection')).toBeVisible();
