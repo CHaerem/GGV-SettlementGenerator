@@ -1,0 +1,23 @@
+{
+  "name": "ggv-settlement-generator",
+  "version": "2.0.0",
+  "description": "Extract donation data from Gi Gaven Videre PDF settlements",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  },
+  "keywords": [
+    "pdf",
+    "extraction",
+    "donations",
+    "gi-gaven-videre"
+  ],
+  "license": "ISC"
+}

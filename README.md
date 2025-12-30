@@ -55,12 +55,59 @@ To run the application locally:
    cd GGV-SettlementGenerator
    ```
 
-2. Serve the files using a local web server. For example, with Python:
+2. Install dependencies (optional, for running tests):
    ```bash
-   python -m http.server 8000
+   npm install
    ```
 
-3. Open `http://localhost:8000` in your browser
+3. Serve the files using a local web server:
+   ```bash
+   npm start
+   # Or with Python:
+   python -m http.server 8080
+   ```
+
+4. Open `http://localhost:8080` in your browser
+
+## Testing
+
+The project uses [Playwright](https://playwright.dev/) for end-to-end testing.
+
+### Running Tests
+
+```bash
+# Install dependencies and browsers
+npm install
+npx playwright install
+
+# Run all tests
+npm test
+
+# Run tests with UI
+npm run test:ui
+
+# Run tests in headed mode (see browser)
+npm run test:headed
+
+# Debug tests
+npm run test:debug
+```
+
+### Test Coverage
+
+The E2E tests cover:
+
+- **Page Loading**: Title, header, footer, initial UI state
+- **File Input**: PDF file selection, file type validation
+- **Drag and Drop**: Dragover/dragleave states, file drop handling
+- **PDF Processing**: Status display, progress indicator, error handling
+- **Results Display**: Summary cards, organization table, validation messages
+- **Data Extraction**: Regex pattern matching, sum calculation, recipient extraction
+- **CSV Export**: Download functionality
+- **Reset Functionality**: App state reset after processing
+- **Responsive Design**: Mobile viewport compatibility
+- **Accessibility**: Heading structure, focus states
+- **Edge Cases**: Empty data, special characters, large numbers, XSS prevention
 
 ## Deploying to GitHub Pages
 
