@@ -14,6 +14,12 @@ let extractedData = {
     calculatedTotal: 0
 };
 
+// Sort state
+let currentSort = {
+    column: null,
+    direction: 'asc'
+};
+
 // DOM Elements
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
@@ -29,6 +35,12 @@ const recipientValue = document.getElementById('recipientValue');
 const totalValue = document.getElementById('totalValue');
 const orgCountValue = document.getElementById('orgCountValue');
 const validationMessage = document.getElementById('validationMessage');
+const searchInput = document.getElementById('searchInput');
+const verificationSection = document.getElementById('verificationSection');
+const verifyPdfSum = document.getElementById('verifyPdfSum');
+const verifyCalcSum = document.getElementById('verifyCalcSum');
+const verifyDiff = document.getElementById('verifyDiff');
+const verifyStatus = document.getElementById('verifyStatus');
 
 // Initialize event listeners
 document.addEventListener('DOMContentLoaded', initApp);
@@ -44,6 +56,16 @@ function initApp() {
 
     // Click on drop zone
     dropZone.addEventListener('click', () => fileInput.click());
+
+    // Search functionality
+    if (searchInput) {
+        searchInput.addEventListener('input', handleSearch);
+    }
+
+    // Sortable table headers
+    document.querySelectorAll('.results-table th.sortable').forEach(header => {
+        header.addEventListener('click', () => handleSort(header.dataset.sort));
+    });
 }
 
 function handleDragOver(e) {
@@ -384,10 +406,57 @@ function displayResults() {
         validationMessage.classList.add('success');
     }
 
+    // Show automatic verification
+    displayVerification(sum, calculatedTotal);
+
     // Populate table
+    renderTable(companies);
+
+    // Reset search and sort
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    resetSortIndicators();
+
+    resultsSection.classList.remove('hidden');
+}
+
+function displayVerification(pdfSum, calculatedSum) {
+    if (!verificationSection) return;
+
+    const diff = pdfSum !== null ? Math.abs(pdfSum - calculatedSum) : null;
+    const isMatch = diff !== null && diff < 0.01;
+
+    verifyPdfSum.textContent = pdfSum !== null ? formatNumber(pdfSum) + ' kr' : 'Ikke funnet';
+    verifyCalcSum.textContent = formatNumber(calculatedSum) + ' kr';
+
+    if (diff !== null) {
+        verifyDiff.textContent = diff < 0.01 ? '0 kr' : formatNumber(diff) + ' kr';
+        verifyDiff.className = 'verification-value ' + (isMatch ? 'match' : 'mismatch');
+    } else {
+        verifyDiff.textContent = '-';
+        verifyDiff.className = 'verification-value';
+    }
+
+    if (pdfSum === null) {
+        verifyStatus.textContent = 'Kunne ikke verifisere';
+        verifyStatus.className = 'verification-value mismatch';
+    } else if (isMatch) {
+        verifyStatus.textContent = 'Verifisert OK';
+        verifyStatus.className = 'verification-value match';
+    } else {
+        verifyStatus.textContent = 'Avvik funnet';
+        verifyStatus.className = 'verification-value mismatch';
+    }
+
+    verificationSection.classList.remove('hidden');
+}
+
+function renderTable(companies) {
     resultsBody.innerHTML = '';
     companies.forEach(company => {
         const row = document.createElement('tr');
+        row.dataset.name = company.name.toLowerCase();
         row.innerHTML = `
             <td>${escapeHtml(company.name)}</td>
             <td>${formatNumber(parseFloat(company.number))}</td>
@@ -396,8 +465,100 @@ function displayResults() {
         `;
         resultsBody.appendChild(row);
     });
+}
 
-    resultsSection.classList.remove('hidden');
+function handleSearch(e) {
+    const query = e.target.value.toLowerCase().trim();
+    const rows = resultsBody.querySelectorAll('tr');
+
+    rows.forEach(row => {
+        const name = row.dataset.name || '';
+        if (query === '' || name.includes(query)) {
+            row.classList.remove('hidden');
+        } else {
+            row.classList.add('hidden');
+        }
+    });
+
+    // Update sort info with result count
+    const visibleRows = resultsBody.querySelectorAll('tr:not(.hidden)').length;
+    const sortInfo = document.getElementById('sortInfo');
+    if (sortInfo) {
+        if (query) {
+            sortInfo.textContent = `Viser ${visibleRows} av ${rows.length} organisasjoner`;
+        } else {
+            sortInfo.textContent = 'Klikk på kolonneoverskrift for å sortere';
+        }
+    }
+}
+
+function handleSort(column) {
+    const { companies } = extractedData;
+
+    // Toggle direction if same column
+    if (currentSort.column === column) {
+        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.column = column;
+        currentSort.direction = 'asc';
+    }
+
+    // Sort companies
+    const sortedCompanies = [...companies].sort((a, b) => {
+        let aVal, bVal;
+
+        switch (column) {
+            case 'name':
+                aVal = a.name.toLowerCase();
+                bVal = b.name.toLowerCase();
+                break;
+            case 'amount':
+                aVal = parseFloat(a.number) || 0;
+                bVal = parseFloat(b.number) || 0;
+                break;
+            case 'gifts':
+                aVal = a.numberOfGifts || 0;
+                bVal = b.numberOfGifts || 0;
+                break;
+            case 'percentage':
+                aVal = a.percentage || 0;
+                bVal = b.percentage || 0;
+                break;
+            default:
+                return 0;
+        }
+
+        if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    // Re-render table
+    renderTable(sortedCompanies);
+
+    // Re-apply search filter
+    if (searchInput && searchInput.value) {
+        handleSearch({ target: searchInput });
+    }
+
+    // Update sort indicators
+    updateSortIndicators();
+}
+
+function updateSortIndicators() {
+    document.querySelectorAll('.results-table th.sortable').forEach(header => {
+        header.classList.remove('asc', 'desc');
+        if (header.dataset.sort === currentSort.column) {
+            header.classList.add(currentSort.direction);
+        }
+    });
+}
+
+function resetSortIndicators() {
+    currentSort = { column: null, direction: 'asc' };
+    document.querySelectorAll('.results-table th.sortable').forEach(header => {
+        header.classList.remove('asc', 'desc');
+    });
 }
 
 function showStatus(message, progress) {
@@ -434,8 +595,15 @@ function resetApp() {
     hideStatus();
     hideError();
     hideResults();
+    if (verificationSection) {
+        verificationSection.classList.add('hidden');
+    }
     fileName.textContent = '';
     fileInput.value = '';
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    resetSortIndicators();
     document.querySelector('.upload-section').classList.remove('hidden');
     extractedData = {
         companies: [],

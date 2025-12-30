@@ -636,3 +636,242 @@ test.describe('GGV Oppgjørsgenerator - Helper Functions', () => {
     expect(result).not.toContain('<script>');
   });
 });
+
+test.describe('GGV Oppgjørsgenerator - Search Functionality', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    // Set up test data with multiple companies
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [
+          { name: 'Røde Kors', number: '1000', numberOfGifts: 5, percentage: 25 },
+          { name: 'Kreftforeningen', number: '2000', numberOfGifts: 10, percentage: 50 },
+          { name: 'Redd Barna', number: '500', numberOfGifts: 2, percentage: 25 }
+        ],
+        sum: 3500,
+        recipientCompany: 'Test Company',
+        calculatedTotal: 3500
+      });
+      displayResults();
+    });
+  });
+
+  test('should display search input', async ({ page }) => {
+    const searchInput = page.locator('#searchInput');
+    await expect(searchInput).toBeVisible();
+    await expect(searchInput).toHaveAttribute('placeholder', 'Søk etter organisasjon...');
+  });
+
+  test('should filter table rows based on search query', async ({ page }) => {
+    const searchInput = page.locator('#searchInput');
+    await searchInput.fill('Kors');
+
+    // Only Røde Kors should be visible
+    const visibleRows = page.locator('#resultsBody tr:not(.hidden)');
+    await expect(visibleRows).toHaveCount(1);
+    await expect(visibleRows.first()).toContainText('Røde Kors');
+  });
+
+  test('should show all rows when search is cleared', async ({ page }) => {
+    const searchInput = page.locator('#searchInput');
+    await searchInput.fill('Kors');
+    await searchInput.fill('');
+
+    const visibleRows = page.locator('#resultsBody tr:not(.hidden)');
+    await expect(visibleRows).toHaveCount(3);
+  });
+
+  test('should update result count during search', async ({ page }) => {
+    const searchInput = page.locator('#searchInput');
+    await searchInput.fill('Kors');
+
+    const sortInfo = page.locator('#sortInfo');
+    await expect(sortInfo).toContainText('Viser 1 av 3');
+  });
+
+  test('should be case insensitive', async ({ page }) => {
+    const searchInput = page.locator('#searchInput');
+    await searchInput.fill('KREFT');
+
+    const visibleRows = page.locator('#resultsBody tr:not(.hidden)');
+    await expect(visibleRows).toHaveCount(1);
+    await expect(visibleRows.first()).toContainText('Kreftforeningen');
+  });
+});
+
+test.describe('GGV Oppgjørsgenerator - Sort Functionality', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [
+          { name: 'Bravo Org', number: '2000', numberOfGifts: 10, percentage: 40 },
+          { name: 'Alpha Org', number: '1000', numberOfGifts: 5, percentage: 20 },
+          { name: 'Charlie Org', number: '3000', numberOfGifts: 15, percentage: 40 }
+        ],
+        sum: 6000,
+        recipientCompany: 'Test Company',
+        calculatedTotal: 6000
+      });
+      displayResults();
+    });
+  });
+
+  test('should display sortable column headers', async ({ page }) => {
+    const sortableHeaders = page.locator('.results-table th.sortable');
+    await expect(sortableHeaders).toHaveCount(4);
+  });
+
+  test('should sort by name ascending when clicking name header', async ({ page }) => {
+    await page.click('th[data-sort="name"]');
+
+    const firstRow = page.locator('#resultsBody tr').first();
+    await expect(firstRow).toContainText('Alpha Org');
+  });
+
+  test('should sort by name descending on second click', async ({ page }) => {
+    await page.click('th[data-sort="name"]');
+    await page.click('th[data-sort="name"]');
+
+    const firstRow = page.locator('#resultsBody tr').first();
+    await expect(firstRow).toContainText('Charlie Org');
+  });
+
+  test('should sort by amount', async ({ page }) => {
+    await page.click('th[data-sort="amount"]');
+
+    const firstRow = page.locator('#resultsBody tr').first();
+    await expect(firstRow).toContainText('Alpha Org');
+  });
+
+  test('should show sort indicator on active column', async ({ page }) => {
+    await page.click('th[data-sort="name"]');
+
+    const nameHeader = page.locator('th[data-sort="name"]');
+    await expect(nameHeader).toHaveClass(/asc/);
+  });
+
+  test('should toggle sort indicator direction', async ({ page }) => {
+    await page.click('th[data-sort="name"]');
+    await page.click('th[data-sort="name"]');
+
+    const nameHeader = page.locator('th[data-sort="name"]');
+    await expect(nameHeader).toHaveClass(/desc/);
+  });
+});
+
+test.describe('GGV Oppgjørsgenerator - Verification Section', () => {
+  test('should display verification section after processing', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [{ name: 'Test Org', number: '1000' }],
+        sum: 1000,
+        recipientCompany: 'Test Company',
+        calculatedTotal: 1000
+      });
+      displayResults();
+    });
+
+    const verificationSection = page.locator('#verificationSection');
+    await expect(verificationSection).toBeVisible();
+  });
+
+  test('should show matching status when sums match', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [{ name: 'Test Org', number: '1000' }],
+        sum: 1000,
+        recipientCompany: 'Test Company',
+        calculatedTotal: 1000
+      });
+      displayResults();
+    });
+
+    const status = page.locator('#verifyStatus');
+    await expect(status).toContainText('Verifisert OK');
+    await expect(status).toHaveClass(/match/);
+  });
+
+  test('should show mismatch status when sums differ', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [{ name: 'Test Org', number: '1000' }],
+        sum: 1500,
+        recipientCompany: 'Test Company',
+        calculatedTotal: 1000
+      });
+      displayResults();
+    });
+
+    const status = page.locator('#verifyStatus');
+    await expect(status).toContainText('Avvik funnet');
+    await expect(status).toHaveClass(/mismatch/);
+  });
+
+  test('should display correct PDF sum', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [{ name: 'Test Org', number: '1000' }],
+        sum: 1000,
+        recipientCompany: 'Test Company',
+        calculatedTotal: 1000
+      });
+      displayResults();
+    });
+
+    const pdfSum = page.locator('#verifyPdfSum');
+    await expect(pdfSum).toContainText('1');
+  });
+
+  test('should display calculated sum', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [{ name: 'Test Org', number: '1000' }],
+        sum: 1000,
+        recipientCompany: 'Test Company',
+        calculatedTotal: 1000
+      });
+      displayResults();
+    });
+
+    const calcSum = page.locator('#verifyCalcSum');
+    await expect(calcSum).toContainText('1');
+  });
+
+  test('should show zero difference when sums match', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [{ name: 'Test Org', number: '1000' }],
+        sum: 1000,
+        recipientCompany: 'Test Company',
+        calculatedTotal: 1000
+      });
+      displayResults();
+    });
+
+    const diff = page.locator('#verifyDiff');
+    await expect(diff).toContainText('0 kr');
+  });
+
+  test('should show difference amount when sums do not match', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [{ name: 'Test Org', number: '1000' }],
+        sum: 1500,
+        recipientCompany: 'Test Company',
+        calculatedTotal: 1000
+      });
+      displayResults();
+    });
+
+    const diff = page.locator('#verifyDiff');
+    await expect(diff).toContainText('500');
+  });
+});
