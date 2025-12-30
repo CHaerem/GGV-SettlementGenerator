@@ -369,6 +369,13 @@ function extractRecipientCompanyFromPDFText(textContent) {
         if (match && match[1]) {
             // Clean up multiple spaces and limit to reasonable length
             let result = match[1].trim().replace(/\s+/g, ' ');
+
+            // Remove common unwanted suffixes
+            result = result.replace(/\s*Referanse:.*$/i, '');
+            result = result.replace(/\s*Org\.?nr\.?:?.*$/i, '');
+            result = result.replace(/\s*\d{9}.*$/, ''); // Remove org numbers
+            result = result.trim();
+
             // If result seems too long, try to extract just the name portion
             if (result.length > 50) {
                 const words = result.split(' ');
