@@ -652,6 +652,331 @@ footer {
     transform: translateX(-50%) translateY(0);
 }
 
+/* Header with Settings */
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.header-text {
+    text-align: center;
+    flex: 1;
+}
+
+.settings-button {
+    position: relative;
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.settings-button:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.settings-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: var(--primary-color);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.4rem;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+}
+
+/* New Organizations Alert */
+.new-orgs-alert {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.new-orgs-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.new-orgs-icon {
+    background: #f59e0b;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.new-orgs-text {
+    flex: 1;
+}
+
+.new-orgs-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.new-org-tag {
+    background: white;
+    border: 1px solid #f59e0b;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.new-orgs-add-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.new-orgs-add-btn:hover {
+    background: var(--primary-hover);
+}
+
+.new-orgs-dismiss {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0;
+    line-height: 1;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    padding: 1rem;
+}
+
+.modal-content {
+    background: var(--card-background);
+    border-radius: 12px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.75rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.modal-description {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.modal-section {
+    margin-bottom: 1.5rem;
+}
+
+.modal-section h3 {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.section-help {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+}
+
+.modal-section textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+    margin-bottom: 0.75rem;
+}
+
+.modal-section textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.section-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.modal-button {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.modal-button.primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.modal-button.primary:hover {
+    background: var(--primary-hover);
+}
+
+.modal-button.secondary {
+    background: var(--background-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.modal-button.secondary:hover {
+    background: var(--border-color);
+}
+
+.modal-button.danger {
+    background: var(--error-color);
+    color: white;
+}
+
+.modal-button.danger:hover {
+    background: #b91c1c;
+}
+
+.modal-button.small {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+/* Master List Container */
+.master-list-container {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem;
+}
+
+.empty-list-message {
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 1rem;
+    font-style: italic;
+}
+
+.master-list-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    border-radius: 4px;
+    gap: 0.5rem;
+}
+
+.master-list-item:hover {
+    background: var(--background-color);
+}
+
+.master-list-number {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    min-width: 2rem;
+}
+
+.master-list-name {
+    flex: 1;
+    font-size: 0.9rem;
+}
+
+.master-list-remove {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1.25rem;
+    padding: 0;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.master-list-item:hover .master-list-remove {
+    opacity: 1;
+}
+
+.master-list-remove:hover {
+    color: var(--error-color);
+}
+
 /* Responsive */
 @media (max-width: 640px) {
     .container {

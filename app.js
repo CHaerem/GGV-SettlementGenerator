@@ -20,6 +20,110 @@ let currentSort = {
     direction: 'asc'
 };
 
+// Master organization list (stored in localStorage)
+const MASTER_LIST_KEY = 'ggv-master-org-list';
+const DEFAULT_LIST_URL = 'organizations.json';
+
+/**
+ * Get master organization list from localStorage
+ */
+function getMasterList() {
+    const stored = localStorage.getItem(MASTER_LIST_KEY);
+    return stored ? JSON.parse(stored) : [];
+}
+
+/**
+ * Load default organization list from JSON file (if no local list exists)
+ */
+async function loadDefaultOrganizations() {
+    const currentList = getMasterList();
+    if (currentList.length > 0) {
+        // Already have a list, don't overwrite
+        return;
+    }
+
+    try {
+        const response = await fetch(DEFAULT_LIST_URL);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.organizations && data.organizations.length > 0) {
+                saveMasterList(data.organizations);
+                console.log('Loaded default organization list:', data.organizations.length, 'organizations');
+            }
+        }
+    } catch (err) {
+        console.log('No default organization list found or failed to load:', err);
+    }
+}
+
+/**
+ * Save master organization list to localStorage
+ */
+function saveMasterList(list) {
+    localStorage.setItem(MASTER_LIST_KEY, JSON.stringify(list));
+    updateMasterListUI();
+}
+
+/**
+ * Add organizations to master list
+ */
+function addToMasterList(orgNames) {
+    const masterList = getMasterList();
+    const newOrgs = orgNames.filter(name =>
+        !masterList.some(existing => normalizeOrgName(existing) === normalizeOrgName(name))
+    );
+    if (newOrgs.length > 0) {
+        const updated = [...masterList, ...newOrgs].sort((a, b) => a.localeCompare(b, 'nb'));
+        saveMasterList(updated);
+        return newOrgs;
+    }
+    return [];
+}
+
+/**
+ * Normalize organization name for comparison
+ */
+function normalizeOrgName(name) {
+    return name.toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+/**
+ * Find new organizations not in master list
+ */
+function findNewOrganizations(companies) {
+    const masterList = getMasterList();
+    if (masterList.length === 0) return [];
+
+    return companies.filter(company =>
+        !masterList.some(master => normalizeOrgName(master) === normalizeOrgName(company.name))
+    );
+}
+
+/**
+ * Get companies mapped to master list order with zeros for missing
+ */
+function getCompaniesInMasterListOrder() {
+    const masterList = getMasterList();
+    const { companies } = extractedData;
+
+    if (masterList.length === 0) {
+        // No master list, return alphabetically sorted
+        return [...companies].sort((a, b) => a.name.localeCompare(b.name, 'nb'));
+    }
+
+    // Map each master list org to the extracted data (or zero if not found)
+    return masterList.map(masterName => {
+        const found = companies.find(c => normalizeOrgName(c.name) === normalizeOrgName(masterName));
+        return {
+            name: masterName,
+            number: found ? found.number : '0',
+            numberOfGifts: found ? found.numberOfGifts : 0,
+            percentage: found ? found.percentage : 0,
+            isFromPdf: !!found
+        };
+    });
+}
+
 // DOM Elements
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
@@ -45,7 +149,7 @@ const verifyStatus = document.getElementById('verifyStatus');
 // Initialize event listeners
 document.addEventListener('DOMContentLoaded', initApp);
 
-function initApp() {
+async function initApp() {
     // File input change
     fileInput.addEventListener('change', handleFileSelect);
 
@@ -66,6 +170,12 @@ function initApp() {
     document.querySelectorAll('.results-table th.sortable').forEach(header => {
         header.addEventListener('click', () => handleSort(header.dataset.sort));
     });
+
+    // Load default organizations if no local list exists
+    await loadDefaultOrganizations();
+
+    // Initialize master list badge
+    updateSettingsBadge();
 }
 
 function handleDragOver(e) {
@@ -416,6 +526,19 @@ function displayResults() {
     // Show automatic verification
     displayVerification(sum, calculatedTotal);
 
+    // Check for new organizations (only if master list exists)
+    const masterList = getMasterList();
+    if (masterList.length > 0) {
+        const newOrgs = findNewOrganizations(companies);
+        if (newOrgs.length > 0) {
+            showNewOrgsAlert(newOrgs);
+        } else {
+            hideNewOrgsAlert();
+        }
+    } else {
+        hideNewOrgsAlert();
+    }
+
     // Populate table
     renderTable(companies);
 
@@ -674,29 +797,33 @@ function sortAlphabetically() {
 
 /**
  * Copy data to clipboard in a format suitable for Google Sheets
- * @param {string} format - 'full' for all columns, 'amounts' for just amounts
+ * @param {string} format - 'full' for all columns, 'amounts' for just amounts, 'master-amounts' for master list order
  */
 async function copyToClipboard(format = 'full') {
-    const sortedCompanies = getSortedCompaniesAlphabetically();
+    const masterList = getMasterList();
+    const hasMasterList = masterList.length > 0;
+
+    // Use master list order if available, otherwise alphabetical
+    const companies = hasMasterList ? getCompaniesInMasterListOrder() : getSortedCompaniesAlphabetically();
     let text = '';
 
-    if (format === 'amounts') {
+    if (format === 'amounts' || format === 'master-amounts') {
         // Only copy amounts column (for pasting into existing sheet with org names)
-        text = sortedCompanies.map(c => c.number).join('\n');
+        text = companies.map(c => c.number).join('\n');
     } else if (format === 'names-amounts') {
         // Copy organization names and amounts (tab-separated for Google Sheets)
-        text = sortedCompanies.map(c => `${c.name}\t${c.number}`).join('\n');
+        text = companies.map(c => `${c.name}\t${c.number}`).join('\n');
     } else {
         // Full data with all columns (tab-separated)
         text = 'Organisasjon\tBeløp (kr)\tAntall gaver\tProsent\n';
-        text += sortedCompanies.map(c =>
+        text += companies.map(c =>
             `${c.name}\t${c.number}\t${c.numberOfGifts || ''}\t${c.percentage || ''}`
         ).join('\n');
     }
 
     try {
         await navigator.clipboard.writeText(text);
-        showCopyNotification(getCopyMessage(format));
+        showCopyNotification(getCopyMessage(format, hasMasterList));
     } catch (err) {
         // Fallback for older browsers
         const textarea = document.createElement('textarea');
@@ -707,18 +834,20 @@ async function copyToClipboard(format = 'full') {
         textarea.select();
         document.execCommand('copy');
         document.body.removeChild(textarea);
-        showCopyNotification(getCopyMessage(format));
+        showCopyNotification(getCopyMessage(format, hasMasterList));
     }
 }
 
-function getCopyMessage(format) {
+function getCopyMessage(format, hasMasterList) {
+    const suffix = hasMasterList ? ' (i fast rekkefølge)' : '';
     switch (format) {
         case 'amounts':
-            return 'Beløp kopiert til utklippstavle';
+        case 'master-amounts':
+            return 'Beløp kopiert' + suffix;
         case 'names-amounts':
-            return 'Organisasjoner og beløp kopiert';
+            return 'Organisasjoner og beløp kopiert' + suffix;
         default:
-            return 'Data kopiert til utklippstavle';
+            return 'Data kopiert til utklippstavle' + suffix;
     }
 }
 
@@ -776,6 +905,223 @@ function closeDropdowns() {
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.dropdown')) {
         closeDropdowns();
+    }
+});
+
+// ============================================
+// MASTER LIST MODAL FUNCTIONS
+// ============================================
+
+/**
+ * Open the settings modal
+ */
+function openSettingsModal() {
+    const modal = document.getElementById('settingsModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        updateMasterListUI();
+    }
+}
+
+/**
+ * Close the settings modal
+ */
+function closeSettingsModal() {
+    const modal = document.getElementById('settingsModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+/**
+ * Update master list display in modal
+ */
+function updateMasterListUI() {
+    const listContainer = document.getElementById('masterListContainer');
+    const countDisplay = document.getElementById('masterListCount');
+    const masterList = getMasterList();
+
+    if (countDisplay) {
+        countDisplay.textContent = masterList.length;
+    }
+
+    if (listContainer) {
+        if (masterList.length === 0) {
+            listContainer.innerHTML = '<p class="empty-list-message">Ingen organisasjoner lagt til ennå. Lim inn fra Google Sheets eller legg til fra PDF.</p>';
+        } else {
+            listContainer.innerHTML = masterList.map((org, index) => `
+                <div class="master-list-item">
+                    <span class="master-list-number">${index + 1}.</span>
+                    <span class="master-list-name">${escapeHtml(org)}</span>
+                    <button class="master-list-remove" onclick="removeFromMasterList('${escapeHtml(org).replace(/'/g, "\\'")}')">×</button>
+                </div>
+            `).join('');
+        }
+    }
+
+    // Update header badge
+    updateSettingsBadge();
+}
+
+/**
+ * Update settings button badge
+ */
+function updateSettingsBadge() {
+    const badge = document.getElementById('settingsBadge');
+    const masterList = getMasterList();
+    if (badge) {
+        if (masterList.length > 0) {
+            badge.textContent = masterList.length;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+}
+
+/**
+ * Remove organization from master list
+ */
+function removeFromMasterList(orgName) {
+    const masterList = getMasterList();
+    const updated = masterList.filter(org => org !== orgName);
+    saveMasterList(updated);
+}
+
+/**
+ * Clear entire master list
+ */
+function clearMasterList() {
+    if (confirm('Er du sikker på at du vil slette hele organisasjonslisten?')) {
+        saveMasterList([]);
+        showCopyNotification('Organisasjonslisten er tømt');
+    }
+}
+
+/**
+ * Import organizations from pasted text
+ */
+function importFromPaste() {
+    const textarea = document.getElementById('pasteOrgList');
+    if (!textarea) return;
+
+    const text = textarea.value.trim();
+    if (!text) {
+        showCopyNotification('Ingen tekst å importere');
+        return;
+    }
+
+    // Split by newlines and clean up
+    const orgs = text.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+    if (orgs.length === 0) {
+        showCopyNotification('Ingen organisasjoner funnet');
+        return;
+    }
+
+    // Add to master list (will deduplicate)
+    const masterList = getMasterList();
+    const uniqueNew = orgs.filter(org =>
+        !masterList.some(existing => normalizeOrgName(existing) === normalizeOrgName(org))
+    );
+
+    if (uniqueNew.length > 0) {
+        const updated = [...masterList, ...uniqueNew].sort((a, b) => a.localeCompare(b, 'nb'));
+        saveMasterList(updated);
+        showCopyNotification(`${uniqueNew.length} organisasjoner lagt til`);
+    } else {
+        showCopyNotification('Alle organisasjoner finnes allerede');
+    }
+
+    textarea.value = '';
+}
+
+/**
+ * Export master list to clipboard
+ */
+async function exportMasterList() {
+    const masterList = getMasterList();
+    if (masterList.length === 0) {
+        showCopyNotification('Ingen organisasjoner å eksportere');
+        return;
+    }
+
+    const text = masterList.join('\n');
+
+    try {
+        await navigator.clipboard.writeText(text);
+        showCopyNotification('Organisasjonsliste kopiert');
+    } catch (err) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showCopyNotification('Organisasjonsliste kopiert');
+    }
+}
+
+/**
+ * Add new organizations from current PDF to master list
+ */
+function addNewOrgsToMasterList() {
+    const { companies } = extractedData;
+    const newOrgs = findNewOrganizations(companies);
+
+    if (newOrgs.length === 0) {
+        showCopyNotification('Ingen nye organisasjoner å legge til');
+        return;
+    }
+
+    const added = addToMasterList(newOrgs.map(c => c.name));
+    if (added.length > 0) {
+        showCopyNotification(`${added.length} nye organisasjoner lagt til`);
+        hideNewOrgsAlert();
+    }
+}
+
+/**
+ * Show alert for new organizations found
+ */
+function showNewOrgsAlert(newOrgs) {
+    const alert = document.getElementById('newOrgsAlert');
+    const list = document.getElementById('newOrgsList');
+    const count = document.getElementById('newOrgsCount');
+
+    if (alert && list && count) {
+        count.textContent = newOrgs.length;
+        list.innerHTML = newOrgs.map(c => `<span class="new-org-tag">${escapeHtml(c.name)}</span>`).join('');
+        alert.classList.remove('hidden');
+    }
+}
+
+/**
+ * Hide new organizations alert
+ */
+function hideNewOrgsAlert() {
+    const alert = document.getElementById('newOrgsAlert');
+    if (alert) {
+        alert.classList.add('hidden');
+    }
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('settingsModal');
+    if (modal && e.target === modal) {
+        closeSettingsModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeSettingsModal();
     }
 });
 
