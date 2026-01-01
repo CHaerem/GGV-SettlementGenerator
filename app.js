@@ -645,6 +645,140 @@ function exportToCSV() {
     URL.revokeObjectURL(url);
 }
 
+/**
+ * Get sorted companies (alphabetically by name)
+ */
+function getSortedCompaniesAlphabetically() {
+    const { companies } = extractedData;
+    return [...companies].sort((a, b) => a.name.localeCompare(b.name, 'nb'));
+}
+
+/**
+ * Sort table alphabetically and update UI
+ */
+function sortAlphabetically() {
+    currentSort.column = 'name';
+    currentSort.direction = 'asc';
+
+    const sortedCompanies = getSortedCompaniesAlphabetically();
+    renderTable(sortedCompanies);
+    updateSortIndicators();
+
+    // Re-apply search filter
+    if (searchInput && searchInput.value) {
+        handleSearch({ target: searchInput });
+    }
+
+    showCopyNotification('Sortert alfabetisk');
+}
+
+/**
+ * Copy data to clipboard in a format suitable for Google Sheets
+ * @param {string} format - 'full' for all columns, 'amounts' for just amounts
+ */
+async function copyToClipboard(format = 'full') {
+    const sortedCompanies = getSortedCompaniesAlphabetically();
+    let text = '';
+
+    if (format === 'amounts') {
+        // Only copy amounts column (for pasting into existing sheet with org names)
+        text = sortedCompanies.map(c => c.number).join('\n');
+    } else if (format === 'names-amounts') {
+        // Copy organization names and amounts (tab-separated for Google Sheets)
+        text = sortedCompanies.map(c => `${c.name}\t${c.number}`).join('\n');
+    } else {
+        // Full data with all columns (tab-separated)
+        text = 'Organisasjon\tBeløp (kr)\tAntall gaver\tProsent\n';
+        text += sortedCompanies.map(c =>
+            `${c.name}\t${c.number}\t${c.numberOfGifts || ''}\t${c.percentage || ''}`
+        ).join('\n');
+    }
+
+    try {
+        await navigator.clipboard.writeText(text);
+        showCopyNotification(getCopyMessage(format));
+    } catch (err) {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showCopyNotification(getCopyMessage(format));
+    }
+}
+
+function getCopyMessage(format) {
+    switch (format) {
+        case 'amounts':
+            return 'Beløp kopiert til utklippstavle';
+        case 'names-amounts':
+            return 'Organisasjoner og beløp kopiert';
+        default:
+            return 'Data kopiert til utklippstavle';
+    }
+}
+
+/**
+ * Show a notification when copying
+ */
+function showCopyNotification(message) {
+    // Remove existing notification
+    const existing = document.querySelector('.copy-notification');
+    if (existing) {
+        existing.remove();
+    }
+
+    const notification = document.createElement('div');
+    notification.className = 'copy-notification';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    // Trigger animation
+    requestAnimationFrame(() => {
+        notification.classList.add('show');
+    });
+
+    // Remove after delay
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    }, 2000);
+}
+
+/**
+ * Toggle dropdown menu visibility
+ */
+function toggleDropdown(button) {
+    const dropdown = button.closest('.dropdown');
+    const isOpen = dropdown.classList.contains('open');
+
+    // Close all dropdowns first
+    closeDropdowns();
+
+    // Toggle this one if it wasn't open
+    if (!isOpen) {
+        dropdown.classList.add('open');
+    }
+}
+
+/**
+ * Close all dropdown menus
+ */
+function closeDropdowns() {
+    document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.dropdown')) {
+        closeDropdowns();
+    }
+});
+
 function formatNumber(num) {
     if (isNaN(num)) return '-';
     return num.toLocaleString('nb-NO', {

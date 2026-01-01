@@ -63,7 +63,44 @@
                 <div class="results-header">
                     <h2>Resultater</h2>
                     <div class="results-actions">
-                        <button class="action-button" onclick="exportToCSV()">
+                        <!-- Copy dropdown for Google Sheets -->
+                        <div class="dropdown">
+                            <button class="action-button dropdown-toggle" onclick="toggleDropdown(this)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                                </svg>
+                                Kopier til regneark
+                                <svg class="dropdown-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m6 9 6 6 6-6"></path>
+                                </svg>
+                            </button>
+                            <div class="dropdown-menu">
+                                <button class="dropdown-item" onclick="copyToClipboard('full'); closeDropdowns()">
+                                    <span class="dropdown-item-title">Alle kolonner</span>
+                                    <span class="dropdown-item-desc">Organisasjon, beløp, antall, prosent</span>
+                                </button>
+                                <button class="dropdown-item" onclick="copyToClipboard('names-amounts'); closeDropdowns()">
+                                    <span class="dropdown-item-title">Organisasjon + beløp</span>
+                                    <span class="dropdown-item-desc">To kolonner, sortert A-Å</span>
+                                </button>
+                                <button class="dropdown-item" onclick="copyToClipboard('amounts'); closeDropdowns()">
+                                    <span class="dropdown-item-title">Kun beløp</span>
+                                    <span class="dropdown-item-desc">Én kolonne, sortert A-Å</span>
+                                </button>
+                            </div>
+                        </div>
+                        <button class="action-button" onclick="sortAlphabetically()">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m3 16 4 4 4-4"></path>
+                                <path d="M7 20V4"></path>
+                                <path d="M11 4h4"></path>
+                                <path d="M11 8h7"></path>
+                                <path d="M11 12h10"></path>
+                            </svg>
+                            Sorter A-Å
+                        </button>
+                        <button class="action-button secondary" onclick="exportToCSV()">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                 <polyline points="7 10 12 15 17 10"></polyline>
