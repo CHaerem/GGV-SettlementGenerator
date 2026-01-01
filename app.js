@@ -1110,6 +1110,27 @@ function hideNewOrgsAlert() {
     }
 }
 
+/**
+ * Report new organizations via GitHub Issue
+ */
+function reportNewOrganizations() {
+    const { companies } = extractedData;
+    const newOrgs = findNewOrganizations(companies);
+
+    if (newOrgs.length === 0) {
+        showCopyNotification('Ingen nye organisasjoner å melde inn');
+        return;
+    }
+
+    const orgList = newOrgs.map(c => `- ${c.name}`).join('\n');
+    const title = encodeURIComponent(`Nye org: ${newOrgs.map(c => c.name).join(', ').substring(0, 50)}`);
+    const body = encodeURIComponent(`## Nye organisasjoner\n\n${orgList}\n\n---\n*Meldt inn fra GGV Oppgjørsgenerator*`);
+
+    const issueUrl = `https://github.com/CHaerem/GGV-SettlementGenerator/issues/new?labels=new-organization&title=${title}&body=${body}`;
+
+    window.open(issueUrl, '_blank');
+}
+
 // Close modal when clicking outside
 document.addEventListener('click', (e) => {
     const modal = document.getElementById('settingsModal');
