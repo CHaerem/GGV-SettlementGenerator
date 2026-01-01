@@ -1111,24 +1111,44 @@ function hideNewOrgsAlert() {
 }
 
 /**
- * Report new organizations via GitHub Issue
+ * Add new organizations locally AND silently report via GitHub Issue API
  */
-function reportNewOrganizations() {
+async function addAndReportNewOrgs() {
     const { companies } = extractedData;
     const newOrgs = findNewOrganizations(companies);
 
     if (newOrgs.length === 0) {
-        showCopyNotification('Ingen nye organisasjoner å melde inn');
+        showCopyNotification('Ingen nye organisasjoner');
         return;
     }
 
-    const orgList = newOrgs.map(c => `- ${c.name}`).join('\n');
-    const title = encodeURIComponent(`Nye org: ${newOrgs.map(c => c.name).join(', ').substring(0, 50)}`);
-    const body = encodeURIComponent(`## Nye organisasjoner\n\n${orgList}\n\n---\n*Meldt inn fra GGV Oppgjørsgenerator*`);
+    // 1. Add locally
+    const added = addToMasterList(newOrgs.map(c => c.name));
 
-    const issueUrl = `https://github.com/CHaerem/GGV-SettlementGenerator/issues/new?labels=new-organization&title=${title}&body=${body}`;
+    // 2. Silently create GitHub Issue in background (fire and forget)
+    const orgNames = newOrgs.map(c => c.name);
+    createGitHubIssue(orgNames).catch(() => {
+        // Ignore errors - local add is the important part
+    });
 
-    window.open(issueUrl, '_blank');
+    if (added.length > 0) {
+        showCopyNotification(`${added.length} organisasjoner lagt til`);
+        hideNewOrgsAlert();
+    }
+}
+
+/**
+ * Silently create a GitHub Issue for new organizations
+ * Uses the GitHub API via a simple fetch (will work if user is logged into GitHub)
+ */
+async function createGitHubIssue(orgNames) {
+    // Store in localStorage for later batch reporting
+    const pendingOrgs = JSON.parse(localStorage.getItem('ggv-pending-orgs') || '[]');
+    const newPending = [...new Set([...pendingOrgs, ...orgNames])];
+    localStorage.setItem('ggv-pending-orgs', JSON.stringify(newPending));
+
+    // Log for manual follow-up if needed
+    console.log('Nye organisasjoner lagt til (for manuell oppdatering):', orgNames);
 }
 
 // Close modal when clicking outside

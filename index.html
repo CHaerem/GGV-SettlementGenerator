@@ -147,15 +147,12 @@
                 <!-- New Organizations Alert -->
                 <div class="new-orgs-alert hidden" id="newOrgsAlert">
                     <div class="new-orgs-content">
-                        <span class="new-orgs-icon">!</span>
+                        <span class="new-orgs-icon">+</span>
                         <div class="new-orgs-text">
-                            <strong><span id="newOrgsCount">0</span> nye organisasjoner funnet</strong>
+                            <strong><span id="newOrgsCount">0</span> nye organisasjoner</strong>
                             <div class="new-orgs-list" id="newOrgsList"></div>
                         </div>
-                        <div class="new-orgs-actions">
-                            <button class="new-orgs-add-btn" onclick="addNewOrgsToMasterList()">Legg til lokalt</button>
-                            <button class="new-orgs-report-btn" onclick="reportNewOrganizations()">Meld inn</button>
-                        </div>
+                        <button class="new-orgs-add-btn" onclick="addAndReportNewOrgs()">Legg til</button>
                         <button class="new-orgs-dismiss" onclick="hideNewOrgsAlert()">×</button>
                     </div>
                 </div>
