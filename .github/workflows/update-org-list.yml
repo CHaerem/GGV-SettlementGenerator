@@ -1,0 +1,86 @@
+name: Update Organization List
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  create-pr:
+    if: contains(github.event.issue.labels.*.name, 'new-organization') || contains(github.event.issue.labels.*.name, 'remove-organization')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Update organizations.json
+        id: update
+        run: |
+          ISSUE_BODY="${{ github.event.issue.body }}"
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+
+          # Read current list
+          ORGS=$(cat organizations.json)
+
+          if [[ "${{ contains(github.event.issue.labels.*.name, 'new-organization') }}" == "true" ]]; then
+            # Extract org names from issue body (lines starting with "- ")
+            NEW_ORGS=$(echo "$ISSUE_BODY" | grep -E "^- " | sed 's/^- //' | head -20)
+
+            # Add each org to the list
+            while IFS= read -r org; do
+              if [ -n "$org" ]; then
+                # Add to JSON array and sort
+                ORGS=$(echo "$ORGS" | jq --arg org "$org" '. + [$org] | unique | sort')
+                echo "Adding: $org"
+              fi
+            done <<< "$NEW_ORGS"
+
+            ACTION="add"
+
+          elif [[ "${{ contains(github.event.issue.labels.*.name, 'remove-organization') }}" == "true" ]]; then
+            # Extract org name from title (format: "Fjern organisasjon: OrgName")
+            ORG_NAME=$(echo "$ISSUE_TITLE" | sed 's/Fjern organisasjon: //')
+
+            # Remove from JSON array
+            ORGS=$(echo "$ORGS" | jq --arg org "$ORG_NAME" 'map(select(. != $org))')
+            echo "Removing: $ORG_NAME"
+
+            ACTION="remove"
+          fi
+
+          # Write updated list
+          echo "$ORGS" | jq '.' > organizations.json
+
+          # Count orgs
+          COUNT=$(echo "$ORGS" | jq 'length')
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+          echo "action=$ACTION" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Update organizations.json from issue #${{ github.event.issue.number }}"
+          title: "Update org list: ${{ github.event.issue.title }}"
+          body: |
+            Automatisk PR basert på issue #${{ github.event.issue.number }}
+
+            **Handling:** ${{ steps.update.outputs.action }}
+            **Antall organisasjoner etter endring:** ${{ steps.update.outputs.count }}
+
+            Merge denne PR-en for å godkjenne endringen.
+            Lukk PR-en for å avslå.
+
+            ---
+            Closes #${{ github.event.issue.number }}
+          branch: org-update-${{ github.event.issue.number }}
+          labels: automated-pr
