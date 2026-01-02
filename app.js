@@ -1173,9 +1173,9 @@ function openOrgListModal() {
 
     if (container) {
         container.innerHTML = masterList.map(org =>
-            `<div class="org-list-item" onclick="requestOrgRemoval('${escapeHtml(org).replace(/'/g, "\\'")}')">
-                ${escapeHtml(org)}
-                <span class="org-remove-hint">Klikk for å be om fjerning</span>
+            `<div class="org-list-item">
+                <span class="org-name">${escapeHtml(org)}</span>
+                <span class="org-remove-hint">Klikk for å fjerne</span>
             </div>`
         ).join('');
     }
@@ -1184,6 +1184,17 @@ function openOrgListModal() {
         modal.classList.remove('hidden');
     }
 }
+
+// Event delegation for org list clicks
+document.addEventListener('click', (e) => {
+    const item = e.target.closest('.org-list-item');
+    if (item && document.getElementById('orgListModal')?.contains(item)) {
+        const nameEl = item.querySelector('.org-name');
+        if (nameEl) {
+            requestOrgRemoval(nameEl.textContent);
+        }
+    }
+});
 
 function closeOrgListModal() {
     const modal = document.getElementById('orgListModal');
