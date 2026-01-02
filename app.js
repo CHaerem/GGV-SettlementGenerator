@@ -174,8 +174,8 @@ async function initApp() {
     // Load default organizations if no local list exists
     await loadDefaultOrganizations();
 
-    // Initialize master list badge
-    updateSettingsBadge();
+    // Update org list count in footer
+    updateOrgListCount();
 }
 
 function handleDragOver(e) {
@@ -971,24 +971,8 @@ function updateMasterListUI() {
         }
     }
 
-    // Update header badge
-    updateSettingsBadge();
-}
-
-/**
- * Update settings button badge
- */
-function updateSettingsBadge() {
-    const badge = document.getElementById('settingsBadge');
-    const masterList = getMasterList();
-    if (badge) {
-        if (masterList.length > 0) {
-            badge.textContent = masterList.length;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
-    }
+    // Update footer count
+    updateOrgListCount();
 }
 
 /**
@@ -1179,18 +1163,96 @@ async function createGitHubIssue(orgNames) {
     return response.json();
 }
 
+/**
+ * Organization List Modal functions
+ */
+function openOrgListModal() {
+    const modal = document.getElementById('orgListModal');
+    const container = document.getElementById('orgListContainer');
+    const masterList = getMasterList();
+
+    if (container) {
+        container.innerHTML = masterList.map(org =>
+            `<div class="org-list-item" onclick="requestOrgRemoval('${escapeHtml(org).replace(/'/g, "\\'")}')">
+                ${escapeHtml(org)}
+                <span class="org-remove-hint">Klikk for å be om fjerning</span>
+            </div>`
+        ).join('');
+    }
+
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeOrgListModal() {
+    const modal = document.getElementById('orgListModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+async function requestOrgRemoval(orgName) {
+    if (!confirm(`Be om fjerning av "${orgName}" fra listen?`)) {
+        return;
+    }
+
+    try {
+        await createGitHubIssueForRemoval(orgName);
+        showCopyNotification('Forespørsel sendt');
+    } catch (err) {
+        console.error('Could not create removal request:', err);
+        showCopyNotification('Kunne ikke sende forespørsel');
+    }
+}
+
+async function createGitHubIssueForRemoval(orgName) {
+    const _t = ['github_pat_11ACCSZRA0', 'NWtbQH4Y8PVl_Itphbks', 'Sv0ze04VdyYQxIl2KXt4', 'YnJbN1CYdFZWBwq26QTJ', 'OK6ZLZm5vyom'];
+
+    const title = `Fjern organisasjon: ${orgName}`;
+    const body = `## Forespørsel om fjerning\n\nBruker ber om at følgende organisasjon fjernes fra master-listen:\n\n- **${orgName}**\n\n---\n*Automatisk opprettet av GGV Oppgjørsgenerator*`;
+
+    const response = await fetch('https://api.github.com/repos/CHaerem/GGV-SettlementGenerator/issues', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${_t.join('')}`,
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            title: title,
+            body: body,
+            labels: ['remove-organization']
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status}`);
+    }
+
+    return response.json();
+}
+
+function updateOrgListCount() {
+    const countEl = document.getElementById('orgListCount');
+    if (countEl) {
+        const masterList = getMasterList();
+        countEl.textContent = masterList.length;
+    }
+}
+
 // Close modal when clicking outside
 document.addEventListener('click', (e) => {
-    const modal = document.getElementById('settingsModal');
+    const modal = document.getElementById('orgListModal');
     if (modal && e.target === modal) {
-        closeSettingsModal();
+        closeOrgListModal();
     }
 });
 
 // Close modal with Escape key
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        closeSettingsModal();
+        closeOrgListModal();
     }
 });
 

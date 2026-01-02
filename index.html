@@ -195,8 +195,26 @@
 
         <footer>
             <p>GGV Oppgjørsgenerator - Et verktøy for Gi Gaven Videre</p>
+            <p class="footer-link"><a href="#" onclick="openOrgListModal(); return false;">Se organisasjonsliste (<span id="orgListCount">0</span>)</a></p>
         </footer>
     </div>
+
+    <!-- Organization List Modal -->
+    <div class="modal hidden" id="orgListModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Organisasjonsliste</h2>
+                <button class="modal-close" onclick="closeOrgListModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">
+                    Disse organisasjonene vises alltid i resultatene. Klikk på en organisasjon for å be om fjerning.
+                </p>
+                <div class="org-list-container" id="orgListContainer"></div>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
