@@ -1209,6 +1209,12 @@ if (typeof window !== 'undefined') {
     window.formatNumber = formatNumber;
     window.escapeHtml = escapeHtml;
 
+    // Master list functions
+    window.getMasterList = getMasterList;
+    window.saveMasterList = saveMasterList;
+    window.getCompaniesInMasterListOrder = getCompaniesInMasterListOrder;
+    window.findNewOrganizations = findNewOrganizations;
+
     // Allow tests to set extractedData
     window.setExtractedData = function(data) {
         extractedData = data;

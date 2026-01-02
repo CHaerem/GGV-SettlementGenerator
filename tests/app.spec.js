@@ -875,3 +875,324 @@ test.describe('GGV Oppgjørsgenerator - Verification Section', () => {
     await expect(diff).toContainText('500');
   });
 });
+
+test.describe('GGV Oppgjørsgenerator - Master Organization List', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    // Clear localStorage before each test
+    await page.evaluate(() => localStorage.clear());
+  });
+
+  test('should load default organizations from JSON file', async ({ page }) => {
+    await page.reload();
+    await page.waitForTimeout(500); // Wait for async load
+
+    const masterList = await page.evaluate(() => {
+      return JSON.parse(localStorage.getItem('ggv-master-org-list') || '[]');
+    });
+
+    expect(masterList.length).toBeGreaterThan(0);
+    expect(masterList).toContain('Røde Kors');
+  });
+
+  test('should save and retrieve master list from localStorage', async ({ page }) => {
+    const testOrgs = ['Org A', 'Org B', 'Org C'];
+
+    await page.evaluate((orgs) => {
+      localStorage.setItem('ggv-master-org-list', JSON.stringify(orgs));
+    }, testOrgs);
+
+    const retrieved = await page.evaluate(() => {
+      return JSON.parse(localStorage.getItem('ggv-master-org-list') || '[]');
+    });
+
+    expect(retrieved).toEqual(testOrgs);
+  });
+
+  test('should open settings modal when clicking settings button', async ({ page }) => {
+    await page.reload();
+    await page.click('.settings-button');
+    await expect(page.locator('#settingsModal')).toBeVisible();
+  });
+
+  test('should close settings modal when clicking close button', async ({ page }) => {
+    await page.reload();
+    await page.click('.settings-button');
+    await expect(page.locator('#settingsModal')).toBeVisible();
+
+    await page.click('.modal-close');
+    await expect(page.locator('#settingsModal')).toBeHidden();
+  });
+
+  test('should display master list count in modal', async ({ page }) => {
+    const testOrgs = ['Org A', 'Org B', 'Org C'];
+    await page.evaluate((orgs) => {
+      localStorage.setItem('ggv-master-org-list', JSON.stringify(orgs));
+    }, testOrgs);
+
+    await page.reload();
+    await page.click('.settings-button');
+
+    const count = page.locator('#masterListCount');
+    await expect(count).toHaveText('3');
+  });
+
+  test('should import organizations from textarea', async ({ page }) => {
+    await page.reload();
+    await page.click('.settings-button');
+
+    await page.fill('#pasteOrgList', 'New Org 1\nNew Org 2\nNew Org 3');
+    await page.click('button:has-text("Importer")');
+
+    const masterList = await page.evaluate(() => {
+      return JSON.parse(localStorage.getItem('ggv-master-org-list') || '[]');
+    });
+
+    expect(masterList).toContain('New Org 1');
+    expect(masterList).toContain('New Org 2');
+    expect(masterList).toContain('New Org 3');
+  });
+});
+
+test.describe('GGV Oppgjørsgenerator - New Organizations Alert', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+  });
+
+  test('should show alert when PDF contains orgs not in master list', async ({ page }) => {
+    // Set up a small master list
+    await page.evaluate(() => {
+      localStorage.setItem('ggv-master-org-list', JSON.stringify(['Existing Org']));
+    });
+    await page.reload();
+
+    // Set extracted data with a new org
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [
+          { name: 'Existing Org', number: '1000' },
+          { name: 'Brand New Org', number: '500' }
+        ],
+        sum: 1500,
+        recipientCompany: 'Test',
+        calculatedTotal: 1500
+      });
+      displayResults();
+    });
+
+    await expect(page.locator('#newOrgsAlert')).toBeVisible();
+    await expect(page.locator('#newOrgsCount')).toHaveText('1');
+  });
+
+  test('should hide alert when no new orgs found', async ({ page }) => {
+    // Set up master list that includes the org
+    await page.evaluate(() => {
+      localStorage.setItem('ggv-master-org-list', JSON.stringify(['Test Org']));
+    });
+    await page.reload();
+
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [{ name: 'Test Org', number: '1000' }],
+        sum: 1000,
+        recipientCompany: 'Test',
+        calculatedTotal: 1000
+      });
+      displayResults();
+    });
+
+    await expect(page.locator('#newOrgsAlert')).toBeHidden();
+  });
+
+  test('should add new orgs to master list when clicking add button', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem('ggv-master-org-list', JSON.stringify(['Existing Org']));
+    });
+    await page.reload();
+
+    // Mock fetch to prevent actual GitHub API call
+    await page.evaluate(() => {
+      window.fetch = async () => ({ ok: true, json: async () => ({}) });
+    });
+
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [
+          { name: 'Existing Org', number: '1000' },
+          { name: 'New Org To Add', number: '500' }
+        ],
+        sum: 1500,
+        recipientCompany: 'Test',
+        calculatedTotal: 1500
+      });
+      displayResults();
+    });
+
+    await page.click('.new-orgs-add-btn');
+
+    const masterList = await page.evaluate(() => {
+      return JSON.parse(localStorage.getItem('ggv-master-org-list') || '[]');
+    });
+
+    expect(masterList).toContain('New Org To Add');
+  });
+});
+
+test.describe('GGV Oppgjørsgenerator - GitHub Issue Creation', () => {
+  test('should call GitHub API when adding new organizations', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+
+    await page.evaluate(() => {
+      localStorage.setItem('ggv-master-org-list', JSON.stringify(['Existing Org']));
+    });
+    await page.reload();
+
+    // Track fetch calls
+    const fetchCalls = [];
+    await page.evaluate(() => {
+      window.originalFetch = window.fetch;
+      window.fetchCalls = [];
+      window.fetch = async (url, options) => {
+        window.fetchCalls.push({ url, options });
+        return { ok: true, json: async () => ({ id: 123 }) };
+      };
+    });
+
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [
+          { name: 'Existing Org', number: '1000' },
+          { name: 'New Org', number: '500' }
+        ],
+        sum: 1500,
+        recipientCompany: 'Test',
+        calculatedTotal: 1500
+      });
+      displayResults();
+    });
+
+    await page.click('.new-orgs-add-btn');
+    await page.waitForTimeout(500); // Wait for async fetch
+
+    const calls = await page.evaluate(() => window.fetchCalls);
+
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls[0].url).toContain('github.com');
+    expect(calls[0].url).toContain('issues');
+  });
+
+  test('should include correct labels in GitHub issue', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+
+    await page.evaluate(() => {
+      localStorage.setItem('ggv-master-org-list', JSON.stringify(['Existing']));
+    });
+    await page.reload();
+
+    await page.evaluate(() => {
+      window.fetchCalls = [];
+      window.fetch = async (url, options) => {
+        window.fetchCalls.push({ url, options });
+        return { ok: true, json: async () => ({ id: 123 }) };
+      };
+    });
+
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [{ name: 'New Org', number: '500' }],
+        sum: 500,
+        recipientCompany: 'Test',
+        calculatedTotal: 500
+      });
+      displayResults();
+    });
+
+    await page.click('.new-orgs-add-btn');
+    await page.waitForTimeout(500);
+
+    const calls = await page.evaluate(() => window.fetchCalls);
+    const body = JSON.parse(calls[0].options.body);
+
+    expect(body.labels).toContain('new-organization');
+  });
+
+  test('should continue working even if GitHub API fails', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+
+    await page.evaluate(() => {
+      localStorage.setItem('ggv-master-org-list', JSON.stringify(['Existing']));
+    });
+    await page.reload();
+
+    // Mock fetch to fail
+    await page.evaluate(() => {
+      window.fetch = async () => {
+        throw new Error('Network error');
+      };
+    });
+
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [{ name: 'New Org', number: '500' }],
+        sum: 500,
+        recipientCompany: 'Test',
+        calculatedTotal: 500
+      });
+      displayResults();
+    });
+
+    await page.click('.new-orgs-add-btn');
+
+    // Should still add locally despite API failure
+    const masterList = await page.evaluate(() => {
+      return JSON.parse(localStorage.getItem('ggv-master-org-list') || '[]');
+    });
+
+    expect(masterList).toContain('New Org');
+  });
+});
+
+test.describe('GGV Oppgjørsgenerator - Copy with Master List Order', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.clear());
+  });
+
+  test('should copy amounts in master list order', async ({ page }) => {
+    // Set up master list in specific order
+    await page.evaluate(() => {
+      localStorage.setItem('ggv-master-org-list', JSON.stringify(['Org A', 'Org B', 'Org C']));
+    });
+    await page.reload();
+
+    await page.evaluate(() => {
+      window.setExtractedData({
+        companies: [
+          { name: 'Org C', number: '300' },
+          { name: 'Org A', number: '100' }
+          // Org B is missing - should be 0
+        ],
+        sum: 400,
+        recipientCompany: 'Test',
+        calculatedTotal: 400
+      });
+      displayResults();
+    });
+
+    // Get companies in master list order
+    const orderedCompanies = await page.evaluate(() => {
+      return window.getCompaniesInMasterListOrder ? window.getCompaniesInMasterListOrder() : [];
+    });
+
+    expect(orderedCompanies[0].name).toBe('Org A');
+    expect(orderedCompanies[0].number).toBe('100');
+    expect(orderedCompanies[1].name).toBe('Org B');
+    expect(orderedCompanies[1].number).toBe('0'); // Missing = 0
+    expect(orderedCompanies[2].name).toBe('Org C');
+    expect(orderedCompanies[2].number).toBe('300');
+  });
+});
