@@ -1193,17 +1193,23 @@ function closeOrgListModal() {
 }
 
 async function requestOrgRemoval(orgName) {
-    if (!confirm(`Be om fjerning av "${orgName}" fra listen?`)) {
+    if (!confirm(`Fjerne "${orgName}" fra listen?`)) {
         return;
     }
 
-    try {
-        await createGitHubIssueForRemoval(orgName);
-        showCopyNotification('Forespørsel sendt');
-    } catch (err) {
-        console.error('Could not create removal request:', err);
-        showCopyNotification('Kunne ikke sende forespørsel');
-    }
+    // Remove locally immediately
+    removeFromMasterList(orgName);
+    updateOrgListCount();
+
+    // Refresh modal
+    openOrgListModal();
+
+    showCopyNotification('Fjernet');
+
+    // Create GitHub Issue in background (for global list update)
+    createGitHubIssueForRemoval(orgName).catch(err => {
+        console.log('Could not create GitHub issue:', err);
+    });
 }
 
 async function createGitHubIssueForRemoval(orgName) {
