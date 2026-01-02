@@ -29,20 +29,36 @@ jobs:
           ISSUE_TITLE="${{ github.event.issue.title }}"
 
           # Read current list
-          ORGS=$(cat organizations.json)
+          ORGS=$(cat organizations.json | jq -r '.organizations')
+          CHANGES_MADE=false
+          ERROR_MSG=""
 
           if [[ "${{ contains(github.event.issue.labels.*.name, 'new-organization') }}" == "true" ]]; then
             # Extract org names from issue body (lines starting with "- ")
             NEW_ORGS=$(echo "$ISSUE_BODY" | grep -E "^- " | sed 's/^- //' | head -20)
 
-            # Add each org to the list
-            while IFS= read -r org; do
-              if [ -n "$org" ]; then
-                # Add to JSON array and sort
-                ORGS=$(echo "$ORGS" | jq --arg org "$org" '. + [$org] | unique | sort')
-                echo "Adding: $org"
+            if [ -z "$NEW_ORGS" ]; then
+              ERROR_MSG="Ingen organisasjoner funnet i issue body"
+            else
+              # Add each org to the list
+              while IFS= read -r org; do
+                if [ -n "$org" ]; then
+                  # Check if already exists
+                  EXISTS=$(echo "$ORGS" | jq --arg org "$org" 'map(select(. == $org)) | length')
+                  if [ "$EXISTS" -eq "0" ]; then
+                    ORGS=$(echo "$ORGS" | jq --arg org "$org" '. + [$org] | unique | sort')
+                    echo "Adding: $org"
+                    CHANGES_MADE=true
+                  else
+                    echo "Already exists: $org"
+                  fi
+                fi
+              done <<< "$NEW_ORGS"
+
+              if [ "$CHANGES_MADE" = false ]; then
+                ERROR_MSG="Alle organisasjonene finnes allerede i listen"
               fi
-            done <<< "$NEW_ORGS"
+            fi
 
             ACTION="add"
 
@@ -50,22 +66,56 @@ jobs:
             # Extract org name from title (format: "Fjern organisasjon: OrgName")
             ORG_NAME=$(echo "$ISSUE_TITLE" | sed 's/Fjern organisasjon: //')
 
-            # Remove from JSON array
-            ORGS=$(echo "$ORGS" | jq --arg org "$ORG_NAME" 'map(select(. != $org))')
-            echo "Removing: $ORG_NAME"
+            # Check if org exists in list
+            EXISTS=$(echo "$ORGS" | jq --arg org "$ORG_NAME" 'map(select(. == $org)) | length')
+
+            if [ "$EXISTS" -eq "0" ]; then
+              ERROR_MSG="Organisasjonen '$ORG_NAME' finnes ikke i listen"
+            else
+              ORGS=$(echo "$ORGS" | jq --arg org "$ORG_NAME" 'map(select(. != $org))')
+              echo "Removing: $ORG_NAME"
+              CHANGES_MADE=true
+            fi
 
             ACTION="remove"
           fi
 
+          # Check if we should proceed
+          if [ -n "$ERROR_MSG" ]; then
+            echo "error=$ERROR_MSG" >> $GITHUB_OUTPUT
+            echo "should_close=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           # Write updated list
-          echo "$ORGS" | jq '.' > organizations.json
+          echo "{\"organizations\": $ORGS}" | jq '.' > organizations.json
 
           # Count orgs
           COUNT=$(echo "$ORGS" | jq 'length')
           echo "count=$COUNT" >> $GITHUB_OUTPUT
           echo "action=$ACTION" >> $GITHUB_OUTPUT
+          echo "should_close=false" >> $GITHUB_OUTPUT
+
+      - name: Close issue if validation failed
+        if: steps.update.outputs.should_close == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `⚠️ Kunne ikke opprette PR: ${{ steps.update.outputs.error }}\n\nDette issue lukkes automatisk.`
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              state: 'closed'
+            });
 
       - name: Create Pull Request
+        if: steps.update.outputs.should_close != 'true'
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
