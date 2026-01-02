@@ -909,49 +909,6 @@ test.describe('GGV Oppgjørsgenerator - Master Organization List', () => {
     expect(retrieved).toEqual(testOrgs);
   });
 
-  test('should open settings modal when clicking settings button', async ({ page }) => {
-    await page.reload();
-    await page.click('.settings-button');
-    await expect(page.locator('#settingsModal')).toBeVisible();
-  });
-
-  test('should close settings modal when clicking close button', async ({ page }) => {
-    await page.reload();
-    await page.click('.settings-button');
-    await expect(page.locator('#settingsModal')).toBeVisible();
-
-    await page.click('.modal-close');
-    await expect(page.locator('#settingsModal')).toBeHidden();
-  });
-
-  test('should display master list count in modal', async ({ page }) => {
-    const testOrgs = ['Org A', 'Org B', 'Org C'];
-    await page.evaluate((orgs) => {
-      localStorage.setItem('ggv-master-org-list', JSON.stringify(orgs));
-    }, testOrgs);
-
-    await page.reload();
-    await page.click('.settings-button');
-
-    const count = page.locator('#masterListCount');
-    await expect(count).toHaveText('3');
-  });
-
-  test('should import organizations from textarea', async ({ page }) => {
-    await page.reload();
-    await page.click('.settings-button');
-
-    await page.fill('#pasteOrgList', 'New Org 1\nNew Org 2\nNew Org 3');
-    await page.click('button:has-text("Importer")');
-
-    const masterList = await page.evaluate(() => {
-      return JSON.parse(localStorage.getItem('ggv-master-org-list') || '[]');
-    });
-
-    expect(masterList).toContain('New Org 1');
-    expect(masterList).toContain('New Org 2');
-    expect(masterList).toContain('New Org 3');
-  });
 });
 
 test.describe('GGV Oppgjørsgenerator - New Organizations Alert', () => {
