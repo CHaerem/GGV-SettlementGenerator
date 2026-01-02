@@ -66,6 +66,7 @@ jobs:
           cp index.html dist/
           cp app.js dist/
           cp styles.css dist/
+          cp organizations.json dist/
           cp .nojekyll dist/
 
       - name: Upload artifact
