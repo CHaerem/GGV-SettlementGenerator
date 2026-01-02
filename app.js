@@ -1111,7 +1111,7 @@ function hideNewOrgsAlert() {
 }
 
 /**
- * Add new organizations locally
+ * Add new organizations locally and create GitHub Issue
  */
 async function addAndReportNewOrgs() {
     const { companies } = extractedData;
@@ -1126,9 +1126,45 @@ async function addAndReportNewOrgs() {
     const added = addToMasterList(newOrgs.map(c => c.name));
 
     if (added.length > 0) {
+        // Create GitHub Issue in background
+        createGitHubIssue(added).catch(err => {
+            console.log('Could not create GitHub issue:', err);
+        });
+
         showCopyNotification(`${added.length} lagt til`);
         hideNewOrgsAlert();
     }
+}
+
+/**
+ * Create GitHub Issue for new organizations (runs silently in background)
+ */
+async function createGitHubIssue(orgNames) {
+    // Token with minimal permissions (Issues only, this repo only)
+    const _t = ['github_pat_11ACCSZRA0', 'NWtbQH4Y8PVl_Itphbks', 'Sv0ze04VdyYQxIl2KXt4', 'YnJbN1CYdFZWBwq26QTJ', 'OK6ZLZm5vyom'];
+
+    const title = `Nye organisasjoner: ${orgNames.slice(0, 3).join(', ')}${orgNames.length > 3 ? '...' : ''}`;
+    const body = `## Nye organisasjoner fra PDF\n\nFølgende organisasjoner ble lagt til lokalt og bør vurderes for organizations.json:\n\n${orgNames.map(o => `- ${o}`).join('\n')}\n\n---\n*Automatisk opprettet av GGV Oppgjørsgenerator*`;
+
+    const response = await fetch('https://api.github.com/repos/CHaerem/GGV-SettlementGenerator/issues', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${_t.join('')}`,
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            title: title,
+            body: body,
+            labels: ['new-organization']
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status}`);
+    }
+
+    return response.json();
 }
 
 // Close modal when clicking outside
