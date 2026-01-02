@@ -1,7 +1,7 @@
-{
-  "description": "Standard organisasjonsliste for GGV Oppgjørsgenerator",
-  "lastUpdated": "2026-01-01",
-  "organizations": [
+[
+  "Standard organisasjonsliste for GGV Oppgjørsgenerator",
+  "2026-01-01",
+  [
     "Adina Stiftelsen",
     "ADRA Norge",
     "Against Malaria Foundation",
@@ -131,4 +131,4 @@
     "Zulufadder",
     "Åpne Dører"
   ]
-}
+]
