@@ -195,6 +195,8 @@ test.describe('GGV Oppgjørsgenerator - Results Display', () => {
 
     // Mock the PDF processing by injecting test data using the exposed API
     await page.evaluate(() => {
+      // Set master list to match test orgs
+      window.saveMasterList(['Røde Kors', 'Kirkens Bymisjon', 'Amnesty']);
       window.setExtractedData({
         companies: [
           { name: 'Røde Kors', number: '5000', numberOfGifts: 10, percentage: 25 },
@@ -226,7 +228,8 @@ test.describe('GGV Oppgjørsgenerator - Results Display', () => {
   });
 
   test('should display correct organization count', async ({ page }) => {
-    await expect(page.locator('#orgCountValue')).toHaveText('3');
+    // Now shows "X av Y" format with master list
+    await expect(page.locator('#orgCountValue')).toContainText('3 av');
   });
 
   test('should display success validation message when sums match', async ({ page }) => {
@@ -236,11 +239,12 @@ test.describe('GGV Oppgjørsgenerator - Results Display', () => {
 
   test('should display organizations in table', async ({ page }) => {
     const rows = page.locator('#resultsBody tr');
-    await expect(rows).toHaveCount(3);
+    // Now shows all orgs from master list (127), not just those in PDF
+    const count = await rows.count();
+    expect(count).toBeGreaterThanOrEqual(3);
 
-    // Check first organization
-    const firstRow = rows.first();
-    await expect(firstRow.locator('td').first()).toContainText('Røde Kors');
+    // Check that our test orgs are present (they should have amounts)
+    await expect(page.locator('#resultsBody')).toContainText('Røde Kors');
   });
 
   test('should display action buttons', async ({ page }) => {
@@ -531,6 +535,8 @@ test.describe('GGV Oppgjørsgenerator - Edge Cases', () => {
     await page.goto('/');
 
     await page.evaluate(() => {
+      // Set empty master list
+      window.saveMasterList([]);
       window.setExtractedData({
         companies: [],
         sum: 0,
@@ -549,6 +555,11 @@ test.describe('GGV Oppgjørsgenerator - Edge Cases', () => {
     await page.goto('/');
 
     await page.evaluate(() => {
+      // Set master list to include test orgs
+      window.saveMasterList([
+        'Org with <script>alert("xss")</script>',
+        'Org with "quotes" & ampersands'
+      ]);
       window.setExtractedData({
         companies: [
           { name: 'Org with <script>alert("xss")</script>', number: '1000' },
@@ -641,7 +652,9 @@ test.describe('GGV Oppgjørsgenerator - Search Functionality', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     // Set up test data with multiple companies
+    // Use saveMasterList to set only the test orgs as master list
     await page.evaluate(() => {
+      window.saveMasterList(['Røde Kors', 'Kreftforeningen', 'Redd Barna']);
       window.setExtractedData({
         companies: [
           { name: 'Røde Kors', number: '1000', numberOfGifts: 5, percentage: 25 },
