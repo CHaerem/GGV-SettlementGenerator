@@ -508,7 +508,14 @@ function displayResults() {
     // Update summary cards
     recipientValue.textContent = recipientCompany || '-';
     totalValue.textContent = sum ? formatNumber(sum) + ' kr' : '-';
-    orgCountValue.textContent = companies.length;
+
+    // Show count as "X av Y" if master list exists
+    const masterList = getMasterList();
+    if (masterList.length > 0) {
+        orgCountValue.textContent = `${companies.length} av ${masterList.length}`;
+    } else {
+        orgCountValue.textContent = companies.length;
+    }
 
     // Validation message
     validationMessage.className = 'validation-message';
@@ -539,8 +546,9 @@ function displayResults() {
         hideNewOrgsAlert();
     }
 
-    // Populate table
-    renderTable(companies);
+    // Populate table with all organizations from master list
+    const displayCompanies = getCompaniesInMasterListOrder();
+    renderTable(displayCompanies);
 
     // Reset search and sort
     if (searchInput) {
@@ -587,9 +595,14 @@ function renderTable(companies) {
     companies.forEach(company => {
         const row = document.createElement('tr');
         row.dataset.name = company.name.toLowerCase();
+        const amount = parseFloat(company.number);
+        const isZero = amount === 0;
+        if (isZero) {
+            row.classList.add('zero-amount');
+        }
         row.innerHTML = `
             <td>${escapeHtml(company.name)}</td>
-            <td>${formatNumber(parseFloat(company.number))}</td>
+            <td>${formatNumber(amount)}</td>
             <td>${company.numberOfGifts || '-'}</td>
             <td>${company.percentage ? company.percentage + '%' : '-'}</td>
         `;

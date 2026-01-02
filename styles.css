@@ -536,6 +536,15 @@ footer {
     background: #fef3c7;
 }
 
+/* Zero amount rows (not in PDF) */
+.results-table tbody tr.zero-amount {
+    opacity: 0.5;
+}
+
+.results-table tbody tr.zero-amount td {
+    color: var(--text-secondary);
+}
+
 /* No results message */
 .no-results {
     text-align: center;
