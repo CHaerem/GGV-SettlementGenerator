@@ -534,7 +534,6 @@ function displayResults() {
     displayVerification(sum, calculatedTotal);
 
     // Check for new organizations (only if master list exists)
-    const masterList = getMasterList();
     if (masterList.length > 0) {
         const newOrgs = findNewOrganizations(companies);
         if (newOrgs.length > 0) {
