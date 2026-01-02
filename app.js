@@ -1301,6 +1301,33 @@ function updateOrgListCount() {
     }
 }
 
+async function resetToGlobalList() {
+    if (!confirm('Tilbakestille til den globale listen? Dine lokale endringer vil fjernes.')) {
+        return;
+    }
+
+    // Clear local list
+    localStorage.removeItem(MASTER_LIST_KEY);
+
+    // Reload from organizations.json
+    try {
+        const response = await fetch(DEFAULT_LIST_URL);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.organizations && data.organizations.length > 0) {
+                saveMasterList(data.organizations);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load global list:', err);
+    }
+
+    // Refresh UI
+    updateOrgListCount();
+    openOrgListModal();
+    showCopyNotification('Tilbakestilt');
+}
+
 // Close modal when clicking outside
 document.addEventListener('click', (e) => {
     const modal = document.getElementById('orgListModal');

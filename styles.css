@@ -1058,6 +1058,26 @@ footer {
     opacity: 1;
 }
 
+.modal-footer {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.reset-list-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.85rem;
+    text-decoration: underline;
+}
+
+.reset-list-btn:hover {
+    color: var(--primary-color);
+}
+
 /* Responsive */
 @media (max-width: 640px) {
     .container {
