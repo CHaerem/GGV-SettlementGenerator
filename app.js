@@ -1133,14 +1133,50 @@ async function addAndReportNewOrgs() {
 }
 
 /**
+ * Check if an open issue already exists for an organization
+ */
+async function checkExistingIssue(orgName, label) {
+    const _t = ['github_pat_11ACCSZRA0', 'NWtbQH4Y8PVl_Itphbks', 'Sv0ze04VdyYQxIl2KXt4', 'YnJbN1CYdFZWBwq26QTJ', 'OK6ZLZm5vyom'];
+
+    const query = encodeURIComponent(`repo:CHaerem/GGV-SettlementGenerator is:issue is:open label:${label} "${orgName}" in:title`);
+    const response = await fetch(`https://api.github.com/search/issues?q=${query}`, {
+        headers: {
+            'Authorization': `Bearer ${_t.join('')}`,
+            'Accept': 'application/vnd.github+json'
+        }
+    });
+
+    if (!response.ok) {
+        return false; // On error, allow creating issue
+    }
+
+    const data = await response.json();
+    return data.total_count > 0;
+}
+
+/**
  * Create GitHub Issue for new organizations (runs silently in background)
  */
 async function createGitHubIssue(orgNames) {
     // Token with minimal permissions (Issues only, this repo only)
     const _t = ['github_pat_11ACCSZRA0', 'NWtbQH4Y8PVl_Itphbks', 'Sv0ze04VdyYQxIl2KXt4', 'YnJbN1CYdFZWBwq26QTJ', 'OK6ZLZm5vyom'];
 
-    const title = `Nye organisasjoner: ${orgNames.slice(0, 3).join(', ')}${orgNames.length > 3 ? '...' : ''}`;
-    const body = `## Nye organisasjoner fra PDF\n\nFølgende organisasjoner ble lagt til lokalt og bør vurderes for organizations.json:\n\n${orgNames.map(o => `- ${o}`).join('\n')}\n\n---\n*Automatisk opprettet av GGV Oppgjørsgenerator*`;
+    // Filter out orgs that already have open issues
+    const orgsToReport = [];
+    for (const org of orgNames) {
+        const exists = await checkExistingIssue(org, 'new-organization');
+        if (!exists) {
+            orgsToReport.push(org);
+        }
+    }
+
+    if (orgsToReport.length === 0) {
+        console.log('All orgs already have open issues');
+        return null;
+    }
+
+    const title = `Nye organisasjoner: ${orgsToReport.slice(0, 3).join(', ')}${orgsToReport.length > 3 ? '...' : ''}`;
+    const body = `## Nye organisasjoner fra PDF\n\nFølgende organisasjoner ble lagt til lokalt og bør vurderes for organizations.json:\n\n${orgsToReport.map(o => `- ${o}`).join('\n')}\n\n---\n*Automatisk opprettet av GGV Oppgjørsgenerator*`;
 
     const response = await fetch('https://api.github.com/repos/CHaerem/GGV-SettlementGenerator/issues', {
         method: 'POST',
@@ -1224,6 +1260,13 @@ async function requestOrgRemoval(orgName) {
 }
 
 async function createGitHubIssueForRemoval(orgName) {
+    // Check if issue already exists
+    const exists = await checkExistingIssue(orgName, 'remove-organization');
+    if (exists) {
+        console.log('Issue already exists for:', orgName);
+        return null;
+    }
+
     const _t = ['github_pat_11ACCSZRA0', 'NWtbQH4Y8PVl_Itphbks', 'Sv0ze04VdyYQxIl2KXt4', 'YnJbN1CYdFZWBwq26QTJ', 'OK6ZLZm5vyom'];
 
     const title = `Fjern organisasjon: ${orgName}`;

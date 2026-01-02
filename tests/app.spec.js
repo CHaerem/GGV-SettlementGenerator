@@ -1066,6 +1066,10 @@ test.describe('GGV Oppgjørsgenerator - GitHub Issue Creation', () => {
       window.fetchCalls = [];
       window.fetch = async (url, options) => {
         window.fetchCalls.push({ url, options });
+        // Return empty search results for the duplicate check
+        if (url.includes('search/issues')) {
+          return { ok: true, json: async () => ({ total_count: 0, items: [] }) };
+        }
         return { ok: true, json: async () => ({ id: 123 }) };
       };
     });
@@ -1084,7 +1088,10 @@ test.describe('GGV Oppgjørsgenerator - GitHub Issue Creation', () => {
     await page.waitForTimeout(500);
 
     const calls = await page.evaluate(() => window.fetchCalls);
-    const body = JSON.parse(calls[0].options.body);
+    // Find the POST call (issue creation), not the GET call (search)
+    const postCall = calls.find(c => c.options && c.options.method === 'POST');
+    expect(postCall).toBeTruthy();
+    const body = JSON.parse(postCall.options.body);
 
     expect(body.labels).toContain('new-organization');
   });
