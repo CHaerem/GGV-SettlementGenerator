@@ -1111,7 +1111,7 @@ function hideNewOrgsAlert() {
 }
 
 /**
- * Add new organizations locally AND silently report via GitHub Issue API
+ * Add new organizations locally
  */
 async function addAndReportNewOrgs() {
     const { companies } = extractedData;
@@ -1122,33 +1122,13 @@ async function addAndReportNewOrgs() {
         return;
     }
 
-    // 1. Add locally
+    // Add locally
     const added = addToMasterList(newOrgs.map(c => c.name));
 
-    // 2. Silently create GitHub Issue in background (fire and forget)
-    const orgNames = newOrgs.map(c => c.name);
-    createGitHubIssue(orgNames).catch(() => {
-        // Ignore errors - local add is the important part
-    });
-
     if (added.length > 0) {
-        showCopyNotification(`${added.length} organisasjoner lagt til`);
+        showCopyNotification(`${added.length} lagt til`);
         hideNewOrgsAlert();
     }
-}
-
-/**
- * Silently create a GitHub Issue for new organizations
- * Uses the GitHub API via a simple fetch (will work if user is logged into GitHub)
- */
-async function createGitHubIssue(orgNames) {
-    // Store in localStorage for later batch reporting
-    const pendingOrgs = JSON.parse(localStorage.getItem('ggv-pending-orgs') || '[]');
-    const newPending = [...new Set([...pendingOrgs, ...orgNames])];
-    localStorage.setItem('ggv-pending-orgs', JSON.stringify(newPending));
-
-    // Log for manual follow-up if needed
-    console.log('Nye organisasjoner lagt til (for manuell oppdatering):', orgNames);
 }
 
 // Close modal when clicking outside
