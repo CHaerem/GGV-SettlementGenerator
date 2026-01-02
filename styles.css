@@ -1022,11 +1022,33 @@ footer {
 }
 
 /* Org list modal */
+.org-search-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+}
+
+.org-search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
 .org-list-container {
-    max-height: 400px;
+    max-height: 350px;
     overflow-y: auto;
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
+}
+
+.org-list-empty {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
 }
 
 .org-list-item {

@@ -1205,20 +1205,44 @@ async function createGitHubIssue(orgNames) {
 function openOrgListModal() {
     const modal = document.getElementById('orgListModal');
     const container = document.getElementById('orgListContainer');
+    const searchInput = document.getElementById('orgSearchInput');
     const masterList = getMasterList();
 
     if (container) {
-        container.innerHTML = masterList.map(org =>
-            `<div class="org-list-item">
-                <span class="org-name">${escapeHtml(org)}</span>
-                <span class="org-remove-hint">Klikk for å fjerne</span>
-            </div>`
-        ).join('');
+        renderOrgList(masterList);
+    }
+
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.oninput = () => {
+            const query = searchInput.value.toLowerCase().trim();
+            const filtered = query
+                ? masterList.filter(org => org.toLowerCase().includes(query))
+                : masterList;
+            renderOrgList(filtered);
+        };
     }
 
     if (modal) {
         modal.classList.remove('hidden');
     }
+}
+
+function renderOrgList(orgs) {
+    const container = document.getElementById('orgListContainer');
+    if (!container) return;
+
+    if (orgs.length === 0) {
+        container.innerHTML = '<div class="org-list-empty">Ingen treff</div>';
+        return;
+    }
+
+    container.innerHTML = orgs.map(org =>
+        `<div class="org-list-item">
+            <span class="org-name">${escapeHtml(org)}</span>
+            <span class="org-remove-hint">Klikk for å fjerne</span>
+        </div>`
+    ).join('');
 }
 
 // Event delegation for org list clicks
