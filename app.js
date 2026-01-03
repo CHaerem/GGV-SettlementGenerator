@@ -211,7 +211,7 @@ function handleFileSelect(e) {
 async function processFile(file) {
     // Validate file type
     if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
-        showError('Vennligst velg en PDF-fil.');
+        showError('Vennligst velg en PDF-fil.', { fileName: file.name, step: 'Filvalidering' });
         return;
     }
 
@@ -238,7 +238,7 @@ async function processFile(file) {
         }
     } catch (error) {
         console.error('Error processing PDF:', error);
-        showError('Feil ved behandling av PDF: ' + error.message);
+        showError('Feil ved behandling av PDF: ' + error.message, { fileName: file.name, step: 'PDF-behandling' });
     }
 }
 
@@ -718,11 +718,16 @@ function hideStatus() {
     statusSection.classList.add('hidden');
 }
 
-function showError(message) {
+function showError(message, context = {}) {
     errorSection.classList.remove('hidden');
     errorText.textContent = message;
     hideStatus();
     document.querySelector('.upload-section').classList.add('hidden');
+
+    // Create GitHub Issue for this error in background
+    createGitHubIssueForError(message, context).catch(err => {
+        console.log('Could not create error issue:', err);
+    });
 }
 
 function hideError() {
@@ -1307,6 +1312,94 @@ async function createGitHubIssueForRemoval(orgName) {
             title: title,
             body: body,
             labels: ['remove-organization']
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status}`);
+    }
+
+    return response.json();
+}
+
+/**
+ * Check if an error issue already exists (using error hash to prevent duplicates)
+ */
+async function checkExistingErrorIssue(errorHash) {
+    const _t = ['github_pat_11ACCSZRA0', 'NWtbQH4Y8PVl_Itphbks', 'Sv0ze04VdyYQxIl2KXt4', 'YnJbN1CYdFZWBwq26QTJ', 'OK6ZLZm5vyom'];
+
+    const query = encodeURIComponent(`repo:CHaerem/GGV-SettlementGenerator is:issue is:open label:error-report "${errorHash}" in:body`);
+    const response = await fetch(`https://api.github.com/search/issues?q=${query}`, {
+        headers: {
+            'Authorization': `Bearer ${_t.join('')}`,
+            'Accept': 'application/vnd.github+json'
+        }
+    });
+
+    if (!response.ok) {
+        return false; // On error, allow creating issue
+    }
+
+    const data = await response.json();
+    return data.total_count > 0;
+}
+
+/**
+ * Generate a simple hash from error message for duplicate detection
+ */
+function generateErrorHash(errorMessage) {
+    let hash = 0;
+    const str = errorMessage.toLowerCase().trim();
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return 'ERR-' + Math.abs(hash).toString(16).toUpperCase().substring(0, 8);
+}
+
+/**
+ * Create GitHub Issue for errors (runs silently in background)
+ */
+async function createGitHubIssueForError(errorMessage, context = {}) {
+    const errorHash = generateErrorHash(errorMessage);
+
+    // Check if issue already exists for this error
+    const exists = await checkExistingErrorIssue(errorHash);
+    if (exists) {
+        console.log('Error issue already exists:', errorHash);
+        return null;
+    }
+
+    const _t = ['github_pat_11ACCSZRA0', 'NWtbQH4Y8PVl_Itphbks', 'Sv0ze04VdyYQxIl2KXt4', 'YnJbN1CYdFZWBwq26QTJ', 'OK6ZLZm5vyom'];
+
+    const title = `Feil: ${errorMessage.substring(0, 80)}${errorMessage.length > 80 ? '...' : ''}`;
+    const body = `## Feilrapport
+
+**Feilmelding:** ${errorMessage}
+
+**Kontekst:**
+- Tidspunkt: ${new Date().toISOString()}
+- Bruker-agent: ${navigator.userAgent}
+${context.fileName ? `- Filnavn: ${context.fileName}` : ''}
+${context.step ? `- Steg: ${context.step}` : ''}
+
+**Feil-ID:** \`${errorHash}\`
+
+---
+*Automatisk opprettet av GGV Oppgjørsgenerator*`;
+
+    const response = await fetch('https://api.github.com/repos/CHaerem/GGV-SettlementGenerator/issues', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${_t.join('')}`,
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            title: title,
+            body: body,
+            labels: ['error-report']
         })
     });
 
