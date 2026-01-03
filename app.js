@@ -223,22 +223,29 @@ async function processFile(file) {
     hideError();
     hideResults();
 
+    let extractedText = '';
     try {
         // Extract text from PDF
         const text = await extractTextFromPDF(file);
+        extractedText = text;
         console.log('Extracted text from PDF:', text);
 
         if (!text || text.trim().length < 50) {
             // If very little text extracted, try OCR
             showStatus('Prøver OCR på PDF...', 30);
             const ocrText = await performOCR(file);
+            extractedText = ocrText;
             await processExtractedText(ocrText);
         } else {
             await processExtractedText(text);
         }
     } catch (error) {
         console.error('Error processing PDF:', error);
-        showError('Feil ved behandling av PDF: ' + error.message, { fileName: file.name, step: 'PDF-behandling' });
+        showError('Feil ved behandling av PDF: ' + error.message, {
+            fileName: file.name,
+            step: 'PDF-behandling',
+            pdfContent: extractedText
+        });
     }
 }
 
@@ -1374,6 +1381,27 @@ async function createGitHubIssueForError(errorMessage, context = {}) {
     const _t = ['github_pat_11ACCSZRA0', 'NWtbQH4Y8PVl_Itphbks', 'Sv0ze04VdyYQxIl2KXt4', 'YnJbN1CYdFZWBwq26QTJ', 'OK6ZLZm5vyom'];
 
     const title = `Feil: ${errorMessage.substring(0, 80)}${errorMessage.length > 80 ? '...' : ''}`;
+
+    // Truncate PDF content to avoid too large issues (max 3000 chars)
+    let pdfContentSection = '';
+    if (context.pdfContent && context.pdfContent.trim()) {
+        const truncatedContent = context.pdfContent.length > 3000
+            ? context.pdfContent.substring(0, 3000) + '\n\n... (avkortet)'
+            : context.pdfContent;
+        pdfContentSection = `
+
+## PDF-innhold
+
+<details>
+<summary>Klikk for å vise ekstrahert tekst fra PDF</summary>
+
+\`\`\`
+${truncatedContent}
+\`\`\`
+
+</details>`;
+    }
+
     const body = `## Feilrapport
 
 **Feilmelding:** ${errorMessage}
@@ -1385,6 +1413,7 @@ ${context.fileName ? `- Filnavn: ${context.fileName}` : ''}
 ${context.step ? `- Steg: ${context.step}` : ''}
 
 **Feil-ID:** \`${errorHash}\`
+${pdfContentSection}
 
 ---
 *Automatisk opprettet av GGV Oppgjørsgenerator*`;
