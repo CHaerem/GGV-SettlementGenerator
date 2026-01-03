@@ -224,28 +224,38 @@ async function processFile(file) {
     hideResults();
 
     let extractedText = '';
+    let currentStep = 'PDF-lesing';
     try {
         // Extract text from PDF
+        currentStep = 'Tekstekstrahering';
         const text = await extractTextFromPDF(file);
         extractedText = text;
         console.log('Extracted text from PDF:', text);
 
         if (!text || text.trim().length < 50) {
             // If very little text extracted, try OCR
+            currentStep = 'OCR-behandling';
             showStatus('Prøver OCR på PDF...', 30);
             const ocrText = await performOCR(file);
             extractedText = ocrText;
+            currentStep = 'Tekstanalyse';
             await processExtractedText(ocrText);
         } else {
+            currentStep = 'Tekstanalyse';
             await processExtractedText(text);
         }
     } catch (error) {
         console.error('Error processing PDF:', error);
-        showError('Feil ved behandling av PDF: ' + error.message, {
+
+        // Build detailed error context
+        const errorContext = {
             fileName: file.name,
-            step: 'PDF-behandling',
-            pdfContent: extractedText
-        });
+            step: error instanceof ProcessingError ? error.step : currentStep,
+            pdfContent: error instanceof ProcessingError ? error.relevantContent : extractedText,
+            stackTrace: error instanceof ProcessingError ? error.originalStack : error.stack
+        };
+
+        showError('Feil ved behandling av PDF: ' + error.message, errorContext);
     }
 }
 
@@ -317,33 +327,51 @@ async function performOCR(file) {
 async function processExtractedText(text) {
     showStatus('Analyserer tekst...', 85);
 
-    // Extract data using the same patterns as the original script
-    const companies = extractInformationFromPDFText(text);
-    console.log('Extracted companies:', companies);
+    try {
+        // Extract data using the same patterns as the original script
+        const companies = extractInformationFromPDFText(text);
+        console.log('Extracted companies:', companies);
 
-    const sum = extractSumFromPDFText(text);
-    console.log('Sum from PDF:', sum);
+        const sum = extractSumFromPDFText(text);
+        console.log('Sum from PDF:', sum);
 
-    const total = calculateTotal(companies);
-    console.log('Calculated total:', total);
+        const total = calculateTotal(companies);
+        console.log('Calculated total:', total);
 
-    const recipientCompany = extractRecipientCompanyFromPDFText(text);
-    console.log('Recipient company:', recipientCompany);
+        const recipientCompany = extractRecipientCompanyFromPDFText(text);
+        console.log('Recipient company:', recipientCompany);
 
-    // Store extracted data
-    extractedData = {
-        companies,
-        sum,
-        recipientCompany,
-        calculatedTotal: total
-    };
+        // Store extracted data
+        extractedData = {
+            companies,
+            sum,
+            recipientCompany,
+            calculatedTotal: total
+        };
 
-    showStatus('Fullført!', 100);
+        showStatus('Fullført!', 100);
 
-    // Display results
-    setTimeout(() => {
-        displayResults();
-    }, 500);
+        // Display results
+        setTimeout(() => {
+            displayResults();
+        }, 500);
+    } catch (error) {
+        console.error('Error in processExtractedText:', error);
+        throw new ProcessingError(error.message, 'Tekstanalyse', text, error.stack);
+    }
+}
+
+/**
+ * Custom error class for processing errors with context
+ */
+class ProcessingError extends Error {
+    constructor(message, step, relevantContent, originalStack) {
+        super(message);
+        this.name = 'ProcessingError';
+        this.step = step;
+        this.relevantContent = relevantContent;
+        this.originalStack = originalStack;
+    }
 }
 
 /**
@@ -1393,10 +1421,27 @@ async function createGitHubIssueForError(errorMessage, context = {}) {
 ## PDF-innhold
 
 <details>
-<summary>Klikk for å vise ekstrahert tekst fra PDF</summary>
+<summary>Klikk for å vise ekstrahert tekst fra PDF (${context.pdfContent.length} tegn)</summary>
 
 \`\`\`
 ${truncatedContent}
+\`\`\`
+
+</details>`;
+    }
+
+    // Include stack trace if available
+    let stackTraceSection = '';
+    if (context.stackTrace) {
+        stackTraceSection = `
+
+## Stack Trace
+
+<details>
+<summary>Klikk for å vise teknisk feilinfo</summary>
+
+\`\`\`
+${context.stackTrace}
 \`\`\`
 
 </details>`;
@@ -1410,10 +1455,11 @@ ${truncatedContent}
 - Tidspunkt: ${new Date().toISOString()}
 - Bruker-agent: ${navigator.userAgent}
 ${context.fileName ? `- Filnavn: ${context.fileName}` : ''}
-${context.step ? `- Steg: ${context.step}` : ''}
+${context.step ? `- Steg som feilet: ${context.step}` : ''}
 
 **Feil-ID:** \`${errorHash}\`
 ${pdfContentSection}
+${stackTraceSection}
 
 ---
 *Automatisk opprettet av GGV Oppgjørsgenerator*`;
